@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">  
     <title>装备部件团支部青年π空间</title>  
     <script src="https://cdn.tailwindcss.com"></script>  
-    <!-- Supabase SDK -->  
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  
+    
+    <!-- 使用 CDN 方式加载 Supabase -->  
+    <script src="https://unpkg.com/@supabase/supabase-js@2.38.4/dist/umd/supabase.js"></script>  
 </head>  
 <body class="bg-gray-100">  
     <div class="min-h-screen flex flex-col">  
@@ -18,49 +19,38 @@
                     <div class="flex items-center space-x-3">  
                         <img id="navUserAvatar" class="w-8 h-8 rounded-full object-cover" src="https://via.placeholder.com/32" alt="用户头像">  
                         <span id="navUserName">加载中...</span>  
-                        <button id="logoutBtn" class="px-3 py-1 bg-red-500 rounded hover:bg-red-600">退出</button>  
+                        <button id="editProfileBtn" class="px-3 py-1 bg-blue-500 rounded hover:bg-blue-600">编辑信息</button>  
                     </div>  
-                </div>  
-                <div id="authNav">  
-                    <button id="loginBtn" class="px-4 py-1 bg-blue-500 rounded hover:bg-blue-700">登录</button>  
-                    <button id="registerBtn" class="px-4 py-1 bg-green-500 rounded hover:bg-green-700 ml-2">注册</button>  
                 </div>  
             </div>  
         </nav>  
 
         <!-- 主内容区 -->  
         <div class="container mx-auto px-4 py-6 flex-grow">  
-            <!-- 登录前显示 -->  
-            <div id="authContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10">  
-                <h2 class="text-xl font-semibold mb-4 text-center">请登录或注册</h2>  
-                <p class="text-gray-600 mb-6 text-center">登录后即可参与讨论、发布内容</p>  
+            <!-- 首次访问输入信息表单 -->  
+            <div id="userInfoContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10">  
+                <h2 class="text-xl font-semibold mb-4 text-center">欢迎使用青年π空间</h2>  
+                <p class="text-gray-600 mb-6 text-center">请输入您的基本信息，系统将自动记住</p>  
                 <div class="space-y-4">  
                     <div>  
-                        <label class="block text-gray-700 mb-1">工号</label>  
-                        <input id="authEmployeeId" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入工号">  
+                        <label class="block text-gray-700 mb-1">姓名</label>  
+                        <input id="userName" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入姓名">  
                     </div>  
                     <div>  
-                        <label class="block text-gray-700 mb-1">密码</label>  
-                        <input id="authPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入密码">  
+                        <label class="block text-gray-700 mb-1">工号</label>  
+                        <input id="userEmployeeId" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入工号">  
                     </div>  
-                    <div id="registerFields" class="hidden space-y-4">  
-                        <div>  
-                            <label class="block text-gray-700 mb-1">姓名</label>  
-                            <input id="registerName" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入姓名">  
-                        </div>  
-                        <div>  
-                            <label class="block text-gray-700 mb-1">头像</label>  
-                            <input id="registerAvatar" type="file" accept="image/*" class="w-full">  
-                        </div>  
+                    <div>  
+                        <label class="block text-gray-700 mb-1">头像</label>  
+                        <input id="userAvatar" type="file" accept="image/*" class="w-full">  
                     </div>  
-                    <div class="flex justify-center space-x-4">  
-                        <button id="authLoginBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">登录</button>  
-                        <button id="authRegisterBtn" class="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition">注册</button>  
+                    <div class="flex justify-center">  
+                        <button id="saveUserInfoBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">保存并继续</button>  
                     </div>  
                 </div>  
             </div>  
 
-            <!-- 登录后显示 -->  
+            <!-- 主要内容区 -->  
             <div id="mainContainer" class="hidden">  
                 <!-- 板块导航 -->  
                 <div class="bg-white shadow-md rounded-lg p-4 mb-6">  
@@ -104,15 +94,15 @@
                     <div class="bg-white shadow-md rounded-lg p-6 mb-6">  
                         <div class="flex items-center space-x-4 mb-6">  
                             <div class="relative group">  
-                                <img id="userAvatar" class="w-20 h-20 rounded-full object-cover" src="https://via.placeholder.com/80" alt="用户头像">  
+                                <img id="profileAvatar" class="w-20 h-20 rounded-full object-cover" src="https://via.placeholder.com/80" alt="用户头像">  
                                 <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer" id="changeAvatarBtn">  
                                     <span class="text-white text-xs">更换头像</span>  
                                 </div>  
                                 <input type="file" id="avatarInput" class="hidden" accept="image/*">  
                             </div>  
                             <div>  
-                                <h3 id="userName" class="text-xl font-semibold">加载中...</h3>  
-                                <p class="text-gray-600">工号: <span id="userEmployeeId">加载中...</span></p>  
+                                <h3 id="profileName" class="text-xl font-semibold">加载中...</h3>  
+                                <p class="text-gray-600">工号: <span id="profileEmployeeId">加载中...</span></p>  
                                 <p id="adminBadge" class="hidden text-xs bg-red-500 text-white px-2 py-0.5 rounded inline-block mt-1">管理员</p>  
                             </div>  
                         </div>  
@@ -125,10 +115,10 @@
                                 </div>  
                             </div>  
                             <div>  
-                                <label class="block text-gray-700 mb-1">修改密码</label>  
+                                <label class="block text-gray-700 mb-1">修改工号</label>  
                                 <div class="flex">  
-                                    <input id="newPassword" type="password" class="flex-grow px-4 py-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入新密码">  
-                                    <button id="updatePasswordBtn" class="px-4 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600">更新</button>  
+                                    <input id="newEmployeeId" type="text" class="flex-grow px-4 py-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入新的工号">  
+                                    <button id="updateEmployeeIdBtn" class="px-4 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600">更新</button>  
                                 </div>  
                             </div>  
                         </div>  
@@ -178,82 +168,72 @@
     </template>  
 
     <script>  
-        // Supabase 配置  
-        const SUPABASE_URL = 'https://hunzuynmgdhqvjvyztwq.supabase.co';  
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1bnp1eW5tZ2RocXZqdnl6dHdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4ODI1MzAsImV4cCI6MjA1ODQ1ODUzMH0.5ls_OU8cBVh-4AdLkohYKCrBYr_ITMybaY53iQZP1WI';  
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);  
+        // 错误消息显示元素  
+        const errorContainer = document.createElement('div');  
+        errorContainer.style.cssText = 'position:fixed;bottom:10px;left:10px;background:rgba(220,38,38,0.9);color:white;padding:10px;border-radius:4px;z-index:9999;max-width:80%;';  
+        errorContainer.classList.add('hidden');  
+        document.body.appendChild(errorContainer);  
 
-        // ImgBB 配置  
-        const IMGBB_API_KEY = 'b770ca69f1c22b4cd384bdf5bd18d5e2';  
-        
+        function showError(message) {  
+            errorContainer.textContent = message;  
+            errorContainer.classList.remove('hidden');  
+            setTimeout(() => {  
+                errorContainer.classList.add('hidden');  
+            }, 5000);  
+        }  
+
         // 管理员工号列表  
-        const ADMIN_EMPLOYEE_IDS = ['01010014664'];  
-
-        // DOM 元素  
-        const authContainer = document.getElementById('authContainer');  
-        const mainContainer = document.getElementById('mainContainer');  
-        const authNav = document.getElementById('authNav');  
-        const userNav = document.getElementById('userNav');  
-        const loginBtn = document.getElementById('loginBtn');  
-        const registerBtn = document.getElementById('registerBtn');  
-        const logoutBtn = document.getElementById('logoutBtn');  
-        const authLoginBtn = document.getElementById('authLoginBtn');  
-        const authRegisterBtn = document.getElementById('authRegisterBtn');  
-        const registerFields = document.getElementById('registerFields');  
-        const navUserAvatar = document.getElementById('navUserAvatar');  
-        const navUserName = document.getElementById('navUserName');  
-        const sectionBtns = document.querySelectorAll('.section-btn');  
-        const sectionContents = document.querySelectorAll('.section-content');  
-        const techPostBtn = document.getElementById('techPostBtn');  
-        const dailyPostBtn = document.getElementById('dailyPostBtn');  
-        const techPosts = document.getElementById('techPosts');  
-        const dailyPosts = document.getElementById('dailyPosts');  
-        const userPosts = document.getElementById('userPosts');  
-        const userAvatar = document.getElementById('userAvatar');  
-        const userName = document.getElementById('userName');  
-        const userEmployeeId = document.getElementById('userEmployeeId');  
-        const adminBadge = document.getElementById('adminBadge');  
-        const changeAvatarBtn = document.getElementById('changeAvatarBtn');  
-        const avatarInput = document.getElementById('avatarInput');  
-        const updateNameBtn = document.getElementById('updateNameBtn');  
-        const updatePasswordBtn = document.getElementById('updatePasswordBtn');  
+        const ADMIN_EMPLOYEE_IDS = ['admin001', 'admin002'];  
 
         // 当前用户对象  
         let currentUser = null;  
         let isAdmin = false;  
+        let supabase = null;  
+
+        // 初始化Supabase  
+        function initSupabase() {  
+            try {  
+                if (typeof supabase !== 'object') {  
+                    const SUPABASE_URL = 'https://hunzuynmgdhqvjvyztwq.supabase.co';   
+                    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1bnp1eW5tZ2RocXZqdnl6dHdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4ODI1MzAsImV4cCI6MjA1ODQ1ODUzMH0.5ls_OU8cBVh-4AdLkohYKCrBYr_ITMybaY53iQZP1WI';  
+                    
+                    if (typeof window.supabase?.createClient === 'function') {  
+                        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);  
+                        console.log('Supabase 初始化成功');  
+                    } else {  
+                        console.error('Supabase 客户端加载失败');  
+                        showError('系统初始化失败，请刷新页面重试');  
+                    }  
+                }  
+            } catch (error) {  
+                console.error('初始化 Supabase 出错:', error);  
+                showError('系统初始化失败：' + error.message);  
+            }  
+        }  
 
         // 页面加载完成后初始化  
         document.addEventListener('DOMContentLoaded', () => {  
-            // 检查登录状态  
-            checkLoggedInStatus();  
+            console.log('页面加载完成');  
+            
+            // 初始化Supabase客户端  
+            initSupabase();  
 
-            // 注册按钮切换显示  
-            registerBtn.addEventListener('click', () => {  
-                authContainer.querySelector('h2').textContent = '注册新账号';  
-                registerFields.classList.remove('hidden');  
-            });  
+            // 检查本地存储中是否有用户信息  
+            loadUserFromLocalStorage();  
 
-            loginBtn.addEventListener('click', () => {  
-                authContainer.querySelector('h2').textContent = '登录账号';  
-                registerFields.classList.add('hidden');  
-            });  
+            // 保存用户信息按钮  
+            document.getElementById('saveUserInfoBtn').addEventListener('click', saveUserInfo);  
 
-            // 登录功能  
-            authLoginBtn.addEventListener('click', login);  
-
-            // 注册功能  
-            authRegisterBtn.addEventListener('click', register);  
-
-            // 登出功能  
-            logoutBtn.addEventListener('click', logout);  
+            // 编辑信息按钮  
+            document.getElementById('editProfileBtn').addEventListener('click', showUserInfoForm);  
 
             // 板块切换  
-            sectionBtns.forEach(btn => {  
+            document.querySelectorAll('.section-btn').forEach(btn => {  
                 btn.addEventListener('click', () => {  
                     const sectionId = btn.dataset.section;  
                     
                     // 更新按钮样式  
-                    sectionBtns.forEach(b => {  
+                    document.querySelectorAll('.section-btn').forEach(b => {  
                         if (b.dataset.section === sectionId) {  
                             b.classList.add('bg-blue-500', 'text-white');  
                             b.classList.remove('bg-gray-200');  
@@ -264,7 +244,7 @@
                     });  
                     
                     // 显示对应板块内容  
-                    sectionContents.forEach(content => {  
+                    document.querySelectorAll('.section-content').forEach(content => {  
                         content.classList.add('hidden');  
                         if (content.id === `${sectionId}Section`) {  
                             content.classList.remove('hidden');  
@@ -274,223 +254,116 @@
             });  
 
             // 发布帖子  
-            techPostBtn.addEventListener('click', () => createPost('tech'));  
-            dailyPostBtn.addEventListener('click', () => createPost('daily'));  
+            document.getElementById('techPostBtn')?.addEventListener('click', () => createPost('tech'));  
+            document.getElementById('dailyPostBtn')?.addEventListener('click', () => createPost('daily'));  
 
             // 更换头像  
-            changeAvatarBtn.addEventListener('click', () => avatarInput.click());  
-            avatarInput.addEventListener('change', updateAvatar);  
+            document.getElementById('changeAvatarBtn')?.addEventListener('click', () =>   
+                document.getElementById('avatarInput').click()  
+            );  
+            document.getElementById('avatarInput')?.addEventListener('change', updateAvatar);  
 
             // 更新用户信息  
-            updateNameBtn.addEventListener('click', updateUserName);  
-            updatePasswordBtn.addEventListener('click', updateUserPassword);  
-
-            // 启动实时订阅  
-            subscribeToUpdates();  
+            document.getElementById('updateNameBtn')?.addEventListener('click', updateUserName);  
+            document.getElementById('updateEmployeeIdBtn')?.addEventListener('click', updateUserEmployeeId);  
         });  
 
-        // 检查登录状态  
-        async function checkLoggedInStatus() {  
-            const { data: { session }, error } = await supabase.auth.getSession();  
-            
-            if (session) {  
-                const { data: userData, error: userError } = await supabase  
-                    .from('users')  
-                    .select('*')  
-                    .eq('id', session.user.id)  
-                    .single();  
-                
-                if (userError) {  
-                    console.error('获取用户信息失败:', userError);  
-                    return;  
-                }  
-                
-                currentUser = userData;  
+        // 从本地存储加载用户信息  
+        function loadUserFromLocalStorage() {  
+            const savedUser = localStorage.getItem('currentUser');  
+            if (savedUser) {  
+                currentUser = JSON.parse(savedUser);  
                 isAdmin = ADMIN_EMPLOYEE_IDS.includes(currentUser.employee_id);  
-                showLoggedInUI();  
+                showMainUI();  
                 loadPosts();  
             } else {  
-                showLoggedOutUI();  
+                showUserInfoForm();  
             }  
         }  
 
-        // 登录  
-        async function login() {  
-            const employeeId = document.getElementById('authEmployeeId').value;  
-            const password = document.getElementById('authPassword').value;  
+        // 保存用户信息到本地存储  
+        function saveUserInfo() {  
+            const name = document.getElementById('userName').value.trim();  
+            const employeeId = document.getElementById('userEmployeeId').value.trim();  
+            const avatarFile = document.getElementById('userAvatar').files[0];  
             
-            if (!employeeId || !password) {  
-                alert('请输入工号和密码');  
+            if (!name || !employeeId) {  
+                alert('请输入姓名和工号');  
                 return;  
             }  
             
-            // 查找匹配工号的用户  
-            const { data: userData, error: findError } = await supabase  
-                .from('users')  
-                .select('*')  
-                .eq('employee_id', employeeId)  
-                .single();  
+            // 创建用户对象  
+            currentUser = {  
+                name: name,  
+                employee_id: employeeId,  
+                avatar_url: null,  
+                id: Date.now().toString() // 使用时间戳作为临时ID  
+            };  
             
-            if (findError || !userData) {  
-                alert('工号不存在');  
-                return;  
-            }  
+            isAdmin = ADMIN_EMPLOYEE_IDS.includes(employeeId);  
             
-            // 简单密码验证（实际应用中应使用更安全的方式）  
-            if (userData.password !== password) {  
-                alert('密码错误');  
-                return;  
-            }  
-            
-            // 登录  
-            const { error } = await supabase.auth.signInWithPassword({  
-                email: `${employeeId}@example.com`, // 使用工号构造唯一邮箱  
-                password: password  
-            });  
-            
-            if (error) {  
-                console.error('登录失败:', error);  
-                alert('登录失败: ' + error.message);  
-                return;  
-            }  
-            
-            currentUser = userData;  
-            isAdmin = ADMIN_EMPLOYEE_IDS.includes(currentUser.employee_id);  
-            showLoggedInUI();  
-            loadPosts();  
-        }  
-
-        // 注册  
-        async function register() {  
-            const employeeId = document.getElementById('authEmployeeId').value;  
-            const password = document.getElementById('authPassword').value;  
-            const name = document.getElementById('registerName').value;  
-            const avatarFile = document.getElementById('registerAvatar').files[0];  
-            
-            if (!employeeId || !password || !name) {  
-                alert('请填写所有必填字段');  
-                return;  
-            }  
-            
-            // 检查工号是否已存在  
-            const { data: existingUser, error: checkError } = await supabase  
-                .from('users')  
-                .select('*')  
-                .eq('employee_id', employeeId)  
-                .maybeSingle();  
-            
-            if (existingUser) {  
-                alert('工号已被注册');  
-                return;  
-            }  
-            
-            let avatarUrl = null;  
-            
-            // 如果有头像，上传到ImgBB  
+            // 如果有头像，上传头像  
             if (avatarFile) {  
-                avatarUrl = await uploadImageToImgBB(avatarFile);  
-                if (!avatarUrl) {  
-                    alert('头像上传失败');  
-                    return;  
-                }  
-            }  
-            
-            // 注册  
-            const { data, error } = await supabase.auth.signUp({  
-                email: `${employeeId}@example.com`, // 使用工号构造唯一邮箱  
-                password: password  
-            });  
-            
-            if (error) {  
-                console.error('注册失败:', error);  
-                alert('注册失败: ' + error.message);  
-                return;  
-            }  
-            
-            // 创建用户记录  
-            const { error: insertError } = await supabase  
-                .from('users')  
-                .insert({  
-                    id: data.user.id,  
-                    employee_id: employeeId,  
-                    password: password, // 实际应用中应加密存储  
-                    name: name,  
-                    avatar_url: avatarUrl,  
-                    is_admin: ADMIN_EMPLOYEE_IDS.includes(employeeId)  
+                uploadImageToImgBB(avatarFile).then(url => {  
+                    if (url) {  
+                        currentUser.avatar_url = url;  
+                        saveUserToLocalStorage();  
+                    }  
                 });  
-            
-            if (insertError) {  
-                console.error('创建用户失败:', insertError);  
-                alert('注册失败: ' + insertError.message);  
-                return;  
+            } else {  
+                saveUserToLocalStorage();  
             }  
-            
-            alert('注册成功');  
-            document.getElementById('authEmployeeId').value = employeeId;  
-            document.getElementById('authPassword').value = '';  
-            registerFields.classList.add('hidden');  
         }  
 
-        // 登出  
-        async function logout() {  
-            const { error } = await supabase.auth.signOut();  
-            
-            if (error) {  
-                console.error('登出失败:', error);  
-                return;  
-            }  
-            
-            currentUser = null;  
-            isAdmin = false;  
-            showLoggedOutUI();  
+        // 保存用户到本地存储并更新UI  
+        function saveUserToLocalStorage() {  
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+            showMainUI();  
         }  
 
-        // 显示已登录UI  
-        function showLoggedInUI() {  
-            authContainer.classList.add('hidden');  
-            mainContainer.classList.remove('hidden');  
-            authNav.classList.add('hidden');  
-            userNav.classList.remove('hidden');  
+        // 显示用户信息输入表单  
+        function showUserInfoForm() {  
+            document.getElementById('userInfoContainer').classList.remove('hidden');  
+            document.getElementById('mainContainer').classList.add('hidden');  
+            document.getElementById('userNav').classList.add('hidden');  
+            
+            // 如果有已保存的用户信息，填充表单  
+            if (currentUser) {  
+                document.getElementById('userName').value = currentUser.name;  
+                document.getElementById('userEmployeeId').value = currentUser.employee_id;  
+            }  
+        }  
+
+        // 显示主要UI  
+        function showMainUI() {  
+            document.getElementById('userInfoContainer').classList.add('hidden');  
+            document.getElementById('mainContainer').classList.remove('hidden');  
+            document.getElementById('userNav').classList.remove('hidden');  
             
             // 更新导航栏用户信息  
-            navUserName.textContent = currentUser.name;  
+            document.getElementById('navUserName').textContent = currentUser.name;  
             if (currentUser.avatar_url) {  
-                navUserAvatar.src = currentUser.avatar_url;  
+                document.getElementById('navUserAvatar').src = currentUser.avatar_url;  
             }  
             
             // 更新用户个人信息  
-            userName.textContent = currentUser.name;  
-            userEmployeeId.textContent = currentUser.employee_id;  
+            document.getElementById('profileName').textContent = currentUser.name;  
+            document.getElementById('profileEmployeeId').textContent = currentUser.employee_id;  
             if (currentUser.avatar_url) {  
-                userAvatar.src = currentUser.avatar_url;  
+                document.getElementById('profileAvatar').src = currentUser.avatar_url;  
             }  
             
             // 显示管理员标识  
             if (isAdmin) {  
-                adminBadge.classList.remove('hidden');  
+                document.getElementById('adminBadge').classList.remove('hidden');  
             } else {  
-                adminBadge.classList.add('hidden');  
+                document.getElementById('adminBadge').classList.add('hidden');  
             }  
-        }  
-
-        // 显示未登录UI  
-        function showLoggedOutUI() {  
-            authContainer.classList.remove('hidden');  
-            mainContainer.classList.add('hidden');  
-            authNav.classList.remove('hidden');  
-            userNav.classList.add('hidden');  
-            registerFields.classList.add('hidden');  
-            
-            // 清空输入框  
-            document.getElementById('authEmployeeId').value = '';  
-            document.getElementById('authPassword').value = '';  
-            document.getElementById('registerName').value = '';  
-            document.getElementById('registerAvatar').value = '';  
         }  
 
         // 创建帖子  
         async function createPost(section) {  
-            if (!currentUser) return;  
+            if (!supabase || !currentUser) return;  
             
             const contentElem = document.getElementById(`${section}PostContent`);  
             const imageElem = document.getElementById(`${section}PostImage`);  
@@ -518,9 +391,13 @@
                 .from('posts')  
                 .insert({  
                     author_id: currentUser.id,  
+                    author_name: currentUser.name, // 添加作者姓名  
+                    author_employee_id: currentUser.employee_id, // 添加作者工号  
+                    author_avatar: currentUser.avatar_url, // 添加作者头像  
                     content: content,  
                     image_url: imageUrl,  
-                    section: section  
+                    section: section,  
+                    is_admin: isAdmin  
                 });  
             
             if (error) {  
@@ -531,27 +408,24 @@
             
             contentElem.value = '';  
             imageElem.value = '';  
+            
+            // 重新加载帖子  
+            loadPosts();  
         }  
 
         // 加载帖子  
         async function loadPosts() {  
+            if (!supabase) return;  
+            
             // 清空现有帖子  
-            techPosts.innerHTML = '';  
-            dailyPosts.innerHTML = '';  
-            userPosts.innerHTML = '';  
+            document.getElementById('techPosts').innerHTML = '';  
+            document.getElementById('dailyPosts').innerHTML = '';  
+            document.getElementById('userPosts').innerHTML = '';  
             
             // 获取所有帖子  
             const { data: postsData, error } = await supabase  
                 .from('posts')  
-                .select(`  
-                    *,  
-                    users:author_id (  
-                        name,  
-                        avatar_url,  
-                        employee_id,  
-                        is_admin  
-                    )  
-                `)  
+                .select('*')  
                 .order('created_at', { ascending: false });  
             
             if (error) {  
@@ -564,14 +438,14 @@
                 const postElement = createPostElement(post);  
                 
                 if (post.section === 'tech') {  
-                    techPosts.appendChild(postElement.cloneNode(true));  
+                    document.getElementById('techPosts').appendChild(postElement.cloneNode(true));  
                 } else if (post.section === 'daily') {  
-                    dailyPosts.appendChild(postElement.cloneNode(true));  
+                    document.getElementById('dailyPosts').appendChild(postElement.cloneNode(true));  
                 }  
                 
                 // 如果是当前用户的帖子，也添加到用户板块  
-                if (currentUser && post.author_id === currentUser.id) {  
-                    userPosts.appendChild(postElement);  
+                if (currentUser && post.author_employee_id === currentUser.employee_id) {  
+                    document.getElementById('userPosts').appendChild(postElement);  
                 }  
             });  
             
@@ -589,14 +463,14 @@
             
             // 设置作者信息  
             const avatarElem = postElement.querySelector('.post-avatar');  
-            if (post.users.avatar_url) {  
-                avatarElem.src = post.users.avatar_url;  
+            if (post.author_avatar) {  
+                avatarElem.src = post.author_avatar;  
             }  
             
-            postElement.querySelector('.post-author').textContent = post.users.name;  
+            postElement.querySelector('.post-author').textContent = post.author_name;  
             
             // 显示管理员标识  
-            if (post.users.is_admin) {  
+            if (post.is_admin) {  
                 postElement.querySelector('.post-admin-badge').classList.remove('hidden');  
             }  
             
@@ -619,7 +493,7 @@
             postElement.querySelector('.like-count').textContent = post.likes || 0;  
             
             // 如果是当前用户的帖子或管理员，显示删除按钮  
-            if (currentUser && (post.author_id === currentUser.id || isAdmin)) {  
+            if (currentUser && (post.author_employee_id === currentUser.employee_id || isAdmin)) {  
                 postElement.querySelector('.delete-btn').classList.remove('hidden');  
             }  
             
@@ -641,6 +515,10 @@
                     
                     if (error) {  
                         console.error('点赞失败:', error);  
+                    } else {  
+                        // 直接更新UI，无需等待重新加载  
+                        const likeCount = postElement.querySelector('.like-count');  
+                        likeCount.textContent = (parseInt(likeCount.textContent) + 1).toString();  
                     }  
                 });  
             });  
@@ -663,6 +541,10 @@
                         if (error) {  
                             console.error('删除失败:', error);  
                             alert('删除失败: ' + error.message);  
+                        } else {  
+                            // 直接从DOM中移除帖子元素  
+                            const allPostElements = document.querySelectorAll(`.post[data-id="${postId}"]`);  
+                            allPostElements.forEach(elem => elem.remove());  
                         }  
                     }  
                 });  
@@ -671,9 +553,9 @@
 
         // 更新头像  
         async function updateAvatar() {  
-            if (!currentUser || !avatarInput.files.length) return;  
+            if (!currentUser || !document.getElementById('avatarInput').files.length) return;  
             
-            const file = avatarInput.files[0];  
+            const file = document.getElementById('avatarInput').files[0];  
             const avatarUrl = await uploadImageToImgBB(file);  
             
             if (!avatarUrl) {  
@@ -681,27 +563,18 @@
                 return;  
             }  
             
-            // 更新数据库中的头像URL  
-            const { error } = await supabase  
-                .from('users')  
-                .update({ avatar_url: avatarUrl })  
-                .eq('id', currentUser.id);  
-            
-            if (error) {  
-                console.error('更新头像失败:', error);  
-                alert('更新失败: ' + error.message);  
-                return;  
-            }  
-            
-            // 更新当前用户对象和UI  
+            // 更新当前用户头像  
             currentUser.avatar_url = avatarUrl;  
-            userAvatar.src = avatarUrl;  
-            navUserAvatar.src = avatarUrl;  
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+            
+            // 更新UI  
+            document.getElementById('profileAvatar').src = avatarUrl;  
+            document.getElementById('navUserAvatar').src = avatarUrl;  
             alert('头像更新成功');  
         }  
 
         // 更新用户名  
-        async function updateUserName() {  
+        function updateUserName() {  
             if (!currentUser) return;  
             
             const newName = document.getElementById('newName').value.trim();  
@@ -710,62 +583,50 @@
                 return;  
             }  
             
-            const { error } = await supabase  
-                .from('users')  
-                .update({ name: newName })  
-                .eq('id', currentUser.id);  
-            
-            if (error) {  
-                console.error('更新姓名失败:', error);  
-                alert('更新失败: ' + error.message);  
-                return;  
-            }  
-            
+            // 更新当前用户姓名  
             currentUser.name = newName;  
-            userName.textContent = newName;  
-            navUserName.textContent = newName;  
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+            
+            // 更新UI  
+            document.getElementById('profileName').textContent = newName;  
+            document.getElementById('navUserName').textContent = newName;  
             document.getElementById('newName').value = '';  
             alert('姓名更新成功');  
         }  
 
-        // 更新密码  
-        async function updateUserPassword() {  
+        // 更新工号  
+        function updateUserEmployeeId() {  
             if (!currentUser) return;  
             
-            const newPassword = document.getElementById('newPassword').value;  
-            if (!newPassword) {  
-                alert('请输入新的密码');  
+            const newEmployeeId = document.getElementById('newEmployeeId').value.trim();  
+            if (!newEmployeeId) {  
+                alert('请输入新的工号');  
                 return;  
             }  
             
-            // 更新数据库中的密码  
-            const { error: updateError } = await supabase  
-                .from('users')  
-                .update({ password: newPassword })  
-                .eq('id', currentUser.id);  
+            // 更新当前用户工号  
+            currentUser.employee_id = newEmployeeId;  
+            isAdmin = ADMIN_EMPLOYEE_IDS.includes(newEmployeeId);  
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));  
             
-            if (updateError) {  
-                console.error('更新密码失败:', updateError);  
-                alert('更新失败: ' + updateError.message);  
-                return;  
+            // 更新UI  
+            document.getElementById('profileEmployeeId').textContent = newEmployeeId;  
+            document.getElementById('newEmployeeId').value = '';  
+            
+            // 更新管理员标识  
+            if (isAdmin) {  
+                document.getElementById('adminBadge').classList.remove('hidden');  
+            } else {  
+                document.getElementById('adminBadge').classList.add('hidden');  
             }  
             
-            // 更新认证系统中的密码  
-            const { error: authError } = await supabase.auth.updateUser({  
-                password: newPassword  
-            });  
-            
-            if (authError) {  
-                console.error('更新认证密码失败:', authError);  
-                // 不影响使用，所以不提示错误  
-            }  
-            
-            document.getElementById('newPassword').value = '';  
-            alert('密码更新成功');  
+            alert('工号更新成功');  
         }  
 
         // 将图片上传到ImgBB  
         async function uploadImageToImgBB(file) {  
+            const IMGBB_API_KEY = 'b770ca69f1c22b4cd384bdf5bd18d5e2'; // 替换为您的实际API密钥  
+            
             const formData = new FormData();  
             formData.append('image', file);  
             formData.append('key', IMGBB_API_KEY);  
@@ -789,40 +650,6 @@
                 return null;  
             }  
         }  
-
-        // 订阅实时更新  
-        function subscribeToUpdates() {  
-            // 订阅帖子变化  
-            supabase  
-                .channel('public:posts')  
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, payload => {  
-                    // 重新加载帖子  
-                    loadPosts();  
-                })  
-                .subscribe();  
-            
-            // 订阅用户变化  
-            supabase  
-                .channel('public:users')  
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${currentUser?.id}` }, payload => {  
-                    // 如果当前用户信息更新，刷新用户数据  
-                    if (currentUser && payload.new.id === currentUser.id) {  
-                        currentUser = payload.new;  
-                        showLoggedInUI();  
-                    }  
-                })  
-                .subscribe();  
-        }  
-
-        // 创建点赞功能存储过程（需要在Supabase SQL编辑器中执行）  
-        /*  
-        CREATE OR REPLACE FUNCTION increment_likes(post_id UUID)  
-        RETURNS void AS $$  
-        BEGIN  
-          UPDATE posts SET likes = likes + 1 WHERE id = post_id;  
-        END;  
-        $$ LANGUAGE plpgsql;  
-        */  
     </script>  
 </body>  
 </html>  
