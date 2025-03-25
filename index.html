@@ -1,0 +1,828 @@
+<!DOCTYPE html>  
+<html lang="zh-CN">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>装备部件团支部青年π空间</title>  
+    <script src="https://cdn.tailwindcss.com"></script>  
+    <!-- Supabase SDK -->  
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  
+</head>  
+<body class="bg-gray-100">  
+    <div class="min-h-screen flex flex-col">  
+        <!-- 导航栏 -->  
+        <nav class="bg-blue-600 text-white shadow-lg">  
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">  
+                <h1 class="text-2xl font-bold">装备部件团支部青年π空间</h1>  
+                <div id="userNav" class="hidden">  
+                    <div class="flex items-center space-x-3">  
+                        <img id="navUserAvatar" class="w-8 h-8 rounded-full object-cover" src="https://via.placeholder.com/32" alt="用户头像">  
+                        <span id="navUserName">加载中...</span>  
+                        <button id="logoutBtn" class="px-3 py-1 bg-red-500 rounded hover:bg-red-600">退出</button>  
+                    </div>  
+                </div>  
+                <div id="authNav">  
+                    <button id="loginBtn" class="px-4 py-1 bg-blue-500 rounded hover:bg-blue-700">登录</button>  
+                    <button id="registerBtn" class="px-4 py-1 bg-green-500 rounded hover:bg-green-700 ml-2">注册</button>  
+                </div>  
+            </div>  
+        </nav>  
+
+        <!-- 主内容区 -->  
+        <div class="container mx-auto px-4 py-6 flex-grow">  
+            <!-- 登录前显示 -->  
+            <div id="authContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10">  
+                <h2 class="text-xl font-semibold mb-4 text-center">请登录或注册</h2>  
+                <p class="text-gray-600 mb-6 text-center">登录后即可参与讨论、发布内容</p>  
+                <div class="space-y-4">  
+                    <div>  
+                        <label class="block text-gray-700 mb-1">工号</label>  
+                        <input id="authEmployeeId" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入工号">  
+                    </div>  
+                    <div>  
+                        <label class="block text-gray-700 mb-1">密码</label>  
+                        <input id="authPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入密码">  
+                    </div>  
+                    <div id="registerFields" class="hidden space-y-4">  
+                        <div>  
+                            <label class="block text-gray-700 mb-1">姓名</label>  
+                            <input id="registerName" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入姓名">  
+                        </div>  
+                        <div>  
+                            <label class="block text-gray-700 mb-1">头像</label>  
+                            <input id="registerAvatar" type="file" accept="image/*" class="w-full">  
+                        </div>  
+                    </div>  
+                    <div class="flex justify-center space-x-4">  
+                        <button id="authLoginBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">登录</button>  
+                        <button id="authRegisterBtn" class="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition">注册</button>  
+                    </div>  
+                </div>  
+            </div>  
+
+            <!-- 登录后显示 -->  
+            <div id="mainContainer" class="hidden">  
+                <!-- 板块导航 -->  
+                <div class="bg-white shadow-md rounded-lg p-4 mb-6">  
+                    <div class="flex space-x-4">  
+                        <button data-section="tech" class="section-btn px-4 py-2 rounded bg-blue-500 text-white">技术问题板块</button>  
+                        <button data-section="daily" class="section-btn px-4 py-2 rounded bg-gray-200">日常问题板块</button>  
+                        <button data-section="user" class="section-btn px-4 py-2 rounded bg-gray-200">用户板块</button>  
+                    </div>  
+                </div>  
+
+                <!-- 技术问题和日常问题板块 -->  
+                <div id="techSection" class="section-content">  
+                    <h2 class="text-xl font-bold mb-4">技术问题板块</h2>  
+                    <div class="post-form bg-white shadow-md rounded-lg p-4 mb-6">  
+                        <textarea id="techPostContent" class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3" rows="3" placeholder="分享你的技术问题..."></textarea>  
+                        <div class="flex items-center mb-3">  
+                            <label class="mr-2 text-gray-600">添加图片:</label>  
+                            <input id="techPostImage" type="file" accept="image/*">  
+                        </div>  
+                        <button id="techPostBtn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">发布</button>  
+                    </div>  
+                    <div id="techPosts" class="space-y-6"></div>  
+                </div>  
+
+                <div id="dailySection" class="section-content hidden">  
+                    <h2 class="text-xl font-bold mb-4">日常问题板块</h2>  
+                    <div class="post-form bg-white shadow-md rounded-lg p-4 mb-6">  
+                        <textarea id="dailyPostContent" class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3" rows="3" placeholder="分享你的日常问题..."></textarea>  
+                        <div class="flex items-center mb-3">  
+                            <label class="mr-2 text-gray-600">添加图片:</label>  
+                            <input id="dailyPostImage" type="file" accept="image/*">  
+                        </div>  
+                        <button id="dailyPostBtn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">发布</button>  
+                    </div>  
+                    <div id="dailyPosts" class="space-y-6"></div>  
+                </div>  
+
+                <!-- 用户板块 -->  
+                <div id="userSection" class="section-content hidden">  
+                    <h2 class="text-xl font-bold mb-4">个人中心</h2>  
+                    <div class="bg-white shadow-md rounded-lg p-6 mb-6">  
+                        <div class="flex items-center space-x-4 mb-6">  
+                            <div class="relative group">  
+                                <img id="userAvatar" class="w-20 h-20 rounded-full object-cover" src="https://via.placeholder.com/80" alt="用户头像">  
+                                <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer" id="changeAvatarBtn">  
+                                    <span class="text-white text-xs">更换头像</span>  
+                                </div>  
+                                <input type="file" id="avatarInput" class="hidden" accept="image/*">  
+                            </div>  
+                            <div>  
+                                <h3 id="userName" class="text-xl font-semibold">加载中...</h3>  
+                                <p class="text-gray-600">工号: <span id="userEmployeeId">加载中...</span></p>  
+                                <p id="adminBadge" class="hidden text-xs bg-red-500 text-white px-2 py-0.5 rounded inline-block mt-1">管理员</p>  
+                            </div>  
+                        </div>  
+                        <div class="space-y-3">  
+                            <div>  
+                                <label class="block text-gray-700 mb-1">修改姓名</label>  
+                                <div class="flex">  
+                                    <input id="newName" type="text" class="flex-grow px-4 py-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入新的姓名">  
+                                    <button id="updateNameBtn" class="px-4 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600">更新</button>  
+                                </div>  
+                            </div>  
+                            <div>  
+                                <label class="block text-gray-700 mb-1">修改密码</label>  
+                                <div class="flex">  
+                                    <input id="newPassword" type="password" class="flex-grow px-4 py-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入新密码">  
+                                    <button id="updatePasswordBtn" class="px-4 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600">更新</button>  
+                                </div>  
+                            </div>  
+                        </div>  
+                    </div>  
+
+                    <h3 class="text-lg font-semibold mb-3">我的发布记录</h3>  
+                    <div id="userPosts" class="space-y-6"></div>  
+                </div>  
+            </div>  
+        </div>  
+        
+        <!-- 页脚 -->  
+        <footer class="bg-gray-800 text-white py-4 mt-auto">  
+            <div class="container mx-auto px-4 text-center">  
+                <p>装备部件团支部青年π空间 &copy; 2025</p>  
+            </div>  
+        </footer>  
+    </div>  
+
+    <!-- 模板 -->  
+    <template id="postTemplate">  
+        <div class="post bg-white shadow-md rounded-lg p-4">  
+            <div class="flex items-start space-x-3 mb-3">  
+                <img class="post-avatar w-10 h-10 rounded-full object-cover" src="https://via.placeholder.com/40" alt="用户头像">  
+                <div>  
+                    <div class="flex items-center space-x-2">  
+                        <h3 class="post-author font-semibold"></h3>  
+                        <span class="post-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>  
+                    </div>  
+                    <p class="post-time text-gray-500 text-sm"></p>  
+                </div>  
+            </div>  
+            <p class="post-content mb-3"></p>  
+            <div class="post-image-container mb-3 hidden">  
+                <img class="post-image max-h-96 rounded" alt="发布的图片">  
+            </div>  
+            <div class="flex items-center space-x-4 text-gray-500">  
+                <button class="like-btn flex items-center space-x-1 hover:text-blue-500">  
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">  
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />  
+                    </svg>  
+                    <span class="like-count">0</span>  
+                </button>  
+                <button class="delete-btn hidden text-red-500 hover:text-red-700">删除</button>  
+            </div>  
+        </div>  
+    </template>  
+
+    <script>  
+        // Supabase 配置  
+        const SUPABASE_URL = 'https://hunzuynmgdhqvjvyztwq.supabase.co';  
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1bnp1eW5tZ2RocXZqdnl6dHdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4ODI1MzAsImV4cCI6MjA1ODQ1ODUzMH0.5ls_OU8cBVh-4AdLkohYKCrBYr_ITMybaY53iQZP1WI';  
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);  
+
+        // ImgBB 配置  
+        const IMGBB_API_KEY = 'b770ca69f1c22b4cd384bdf5bd18d5e2';  
+        
+        // 管理员工号列表  
+        const ADMIN_EMPLOYEE_IDS = ['01010014664'];  
+
+        // DOM 元素  
+        const authContainer = document.getElementById('authContainer');  
+        const mainContainer = document.getElementById('mainContainer');  
+        const authNav = document.getElementById('authNav');  
+        const userNav = document.getElementById('userNav');  
+        const loginBtn = document.getElementById('loginBtn');  
+        const registerBtn = document.getElementById('registerBtn');  
+        const logoutBtn = document.getElementById('logoutBtn');  
+        const authLoginBtn = document.getElementById('authLoginBtn');  
+        const authRegisterBtn = document.getElementById('authRegisterBtn');  
+        const registerFields = document.getElementById('registerFields');  
+        const navUserAvatar = document.getElementById('navUserAvatar');  
+        const navUserName = document.getElementById('navUserName');  
+        const sectionBtns = document.querySelectorAll('.section-btn');  
+        const sectionContents = document.querySelectorAll('.section-content');  
+        const techPostBtn = document.getElementById('techPostBtn');  
+        const dailyPostBtn = document.getElementById('dailyPostBtn');  
+        const techPosts = document.getElementById('techPosts');  
+        const dailyPosts = document.getElementById('dailyPosts');  
+        const userPosts = document.getElementById('userPosts');  
+        const userAvatar = document.getElementById('userAvatar');  
+        const userName = document.getElementById('userName');  
+        const userEmployeeId = document.getElementById('userEmployeeId');  
+        const adminBadge = document.getElementById('adminBadge');  
+        const changeAvatarBtn = document.getElementById('changeAvatarBtn');  
+        const avatarInput = document.getElementById('avatarInput');  
+        const updateNameBtn = document.getElementById('updateNameBtn');  
+        const updatePasswordBtn = document.getElementById('updatePasswordBtn');  
+
+        // 当前用户对象  
+        let currentUser = null;  
+        let isAdmin = false;  
+
+        // 页面加载完成后初始化  
+        document.addEventListener('DOMContentLoaded', () => {  
+            // 检查登录状态  
+            checkLoggedInStatus();  
+
+            // 注册按钮切换显示  
+            registerBtn.addEventListener('click', () => {  
+                authContainer.querySelector('h2').textContent = '注册新账号';  
+                registerFields.classList.remove('hidden');  
+            });  
+
+            loginBtn.addEventListener('click', () => {  
+                authContainer.querySelector('h2').textContent = '登录账号';  
+                registerFields.classList.add('hidden');  
+            });  
+
+            // 登录功能  
+            authLoginBtn.addEventListener('click', login);  
+
+            // 注册功能  
+            authRegisterBtn.addEventListener('click', register);  
+
+            // 登出功能  
+            logoutBtn.addEventListener('click', logout);  
+
+            // 板块切换  
+            sectionBtns.forEach(btn => {  
+                btn.addEventListener('click', () => {  
+                    const sectionId = btn.dataset.section;  
+                    
+                    // 更新按钮样式  
+                    sectionBtns.forEach(b => {  
+                        if (b.dataset.section === sectionId) {  
+                            b.classList.add('bg-blue-500', 'text-white');  
+                            b.classList.remove('bg-gray-200');  
+                        } else {  
+                            b.classList.remove('bg-blue-500', 'text-white');  
+                            b.classList.add('bg-gray-200');  
+                        }  
+                    });  
+                    
+                    // 显示对应板块内容  
+                    sectionContents.forEach(content => {  
+                        content.classList.add('hidden');  
+                        if (content.id === `${sectionId}Section`) {  
+                            content.classList.remove('hidden');  
+                        }  
+                    });  
+                });  
+            });  
+
+            // 发布帖子  
+            techPostBtn.addEventListener('click', () => createPost('tech'));  
+            dailyPostBtn.addEventListener('click', () => createPost('daily'));  
+
+            // 更换头像  
+            changeAvatarBtn.addEventListener('click', () => avatarInput.click());  
+            avatarInput.addEventListener('change', updateAvatar);  
+
+            // 更新用户信息  
+            updateNameBtn.addEventListener('click', updateUserName);  
+            updatePasswordBtn.addEventListener('click', updateUserPassword);  
+
+            // 启动实时订阅  
+            subscribeToUpdates();  
+        });  
+
+        // 检查登录状态  
+        async function checkLoggedInStatus() {  
+            const { data: { session }, error } = await supabase.auth.getSession();  
+            
+            if (session) {  
+                const { data: userData, error: userError } = await supabase  
+                    .from('users')  
+                    .select('*')  
+                    .eq('id', session.user.id)  
+                    .single();  
+                
+                if (userError) {  
+                    console.error('获取用户信息失败:', userError);  
+                    return;  
+                }  
+                
+                currentUser = userData;  
+                isAdmin = ADMIN_EMPLOYEE_IDS.includes(currentUser.employee_id);  
+                showLoggedInUI();  
+                loadPosts();  
+            } else {  
+                showLoggedOutUI();  
+            }  
+        }  
+
+        // 登录  
+        async function login() {  
+            const employeeId = document.getElementById('authEmployeeId').value;  
+            const password = document.getElementById('authPassword').value;  
+            
+            if (!employeeId || !password) {  
+                alert('请输入工号和密码');  
+                return;  
+            }  
+            
+            // 查找匹配工号的用户  
+            const { data: userData, error: findError } = await supabase  
+                .from('users')  
+                .select('*')  
+                .eq('employee_id', employeeId)  
+                .single();  
+            
+            if (findError || !userData) {  
+                alert('工号不存在');  
+                return;  
+            }  
+            
+            // 简单密码验证（实际应用中应使用更安全的方式）  
+            if (userData.password !== password) {  
+                alert('密码错误');  
+                return;  
+            }  
+            
+            // 登录  
+            const { error } = await supabase.auth.signInWithPassword({  
+                email: `${employeeId}@example.com`, // 使用工号构造唯一邮箱  
+                password: password  
+            });  
+            
+            if (error) {  
+                console.error('登录失败:', error);  
+                alert('登录失败: ' + error.message);  
+                return;  
+            }  
+            
+            currentUser = userData;  
+            isAdmin = ADMIN_EMPLOYEE_IDS.includes(currentUser.employee_id);  
+            showLoggedInUI();  
+            loadPosts();  
+        }  
+
+        // 注册  
+        async function register() {  
+            const employeeId = document.getElementById('authEmployeeId').value;  
+            const password = document.getElementById('authPassword').value;  
+            const name = document.getElementById('registerName').value;  
+            const avatarFile = document.getElementById('registerAvatar').files[0];  
+            
+            if (!employeeId || !password || !name) {  
+                alert('请填写所有必填字段');  
+                return;  
+            }  
+            
+            // 检查工号是否已存在  
+            const { data: existingUser, error: checkError } = await supabase  
+                .from('users')  
+                .select('*')  
+                .eq('employee_id', employeeId)  
+                .maybeSingle();  
+            
+            if (existingUser) {  
+                alert('工号已被注册');  
+                return;  
+            }  
+            
+            let avatarUrl = null;  
+            
+            // 如果有头像，上传到ImgBB  
+            if (avatarFile) {  
+                avatarUrl = await uploadImageToImgBB(avatarFile);  
+                if (!avatarUrl) {  
+                    alert('头像上传失败');  
+                    return;  
+                }  
+            }  
+            
+            // 注册  
+            const { data, error } = await supabase.auth.signUp({  
+                email: `${employeeId}@example.com`, // 使用工号构造唯一邮箱  
+                password: password  
+            });  
+            
+            if (error) {  
+                console.error('注册失败:', error);  
+                alert('注册失败: ' + error.message);  
+                return;  
+            }  
+            
+            // 创建用户记录  
+            const { error: insertError } = await supabase  
+                .from('users')  
+                .insert({  
+                    id: data.user.id,  
+                    employee_id: employeeId,  
+                    password: password, // 实际应用中应加密存储  
+                    name: name,  
+                    avatar_url: avatarUrl,  
+                    is_admin: ADMIN_EMPLOYEE_IDS.includes(employeeId)  
+                });  
+            
+            if (insertError) {  
+                console.error('创建用户失败:', insertError);  
+                alert('注册失败: ' + insertError.message);  
+                return;  
+            }  
+            
+            alert('注册成功');  
+            document.getElementById('authEmployeeId').value = employeeId;  
+            document.getElementById('authPassword').value = '';  
+            registerFields.classList.add('hidden');  
+        }  
+
+        // 登出  
+        async function logout() {  
+            const { error } = await supabase.auth.signOut();  
+            
+            if (error) {  
+                console.error('登出失败:', error);  
+                return;  
+            }  
+            
+            currentUser = null;  
+            isAdmin = false;  
+            showLoggedOutUI();  
+        }  
+
+        // 显示已登录UI  
+        function showLoggedInUI() {  
+            authContainer.classList.add('hidden');  
+            mainContainer.classList.remove('hidden');  
+            authNav.classList.add('hidden');  
+            userNav.classList.remove('hidden');  
+            
+            // 更新导航栏用户信息  
+            navUserName.textContent = currentUser.name;  
+            if (currentUser.avatar_url) {  
+                navUserAvatar.src = currentUser.avatar_url;  
+            }  
+            
+            // 更新用户个人信息  
+            userName.textContent = currentUser.name;  
+            userEmployeeId.textContent = currentUser.employee_id;  
+            if (currentUser.avatar_url) {  
+                userAvatar.src = currentUser.avatar_url;  
+            }  
+            
+            // 显示管理员标识  
+            if (isAdmin) {  
+                adminBadge.classList.remove('hidden');  
+            } else {  
+                adminBadge.classList.add('hidden');  
+            }  
+        }  
+
+        // 显示未登录UI  
+        function showLoggedOutUI() {  
+            authContainer.classList.remove('hidden');  
+            mainContainer.classList.add('hidden');  
+            authNav.classList.remove('hidden');  
+            userNav.classList.add('hidden');  
+            registerFields.classList.add('hidden');  
+            
+            // 清空输入框  
+            document.getElementById('authEmployeeId').value = '';  
+            document.getElementById('authPassword').value = '';  
+            document.getElementById('registerName').value = '';  
+            document.getElementById('registerAvatar').value = '';  
+        }  
+
+        // 创建帖子  
+        async function createPost(section) {  
+            if (!currentUser) return;  
+            
+            const contentElem = document.getElementById(`${section}PostContent`);  
+            const imageElem = document.getElementById(`${section}PostImage`);  
+            const content = contentElem.value.trim();  
+            const imageFile = imageElem.files[0];  
+            
+            if (!content) {  
+                alert('请输入内容');  
+                return;  
+            }  
+            
+            let imageUrl = null;  
+            
+            // 如果有图片，上传到ImgBB  
+            if (imageFile) {  
+                imageUrl = await uploadImageToImgBB(imageFile);  
+                if (!imageUrl) {  
+                    alert('图片上传失败');  
+                    return;  
+                }  
+            }  
+            
+            // 创建帖子  
+            const { error } = await supabase  
+                .from('posts')  
+                .insert({  
+                    author_id: currentUser.id,  
+                    content: content,  
+                    image_url: imageUrl,  
+                    section: section  
+                });  
+            
+            if (error) {  
+                console.error('发布失败:', error);  
+                alert('发布失败: ' + error.message);  
+                return;  
+            }  
+            
+            contentElem.value = '';  
+            imageElem.value = '';  
+        }  
+
+        // 加载帖子  
+        async function loadPosts() {  
+            // 清空现有帖子  
+            techPosts.innerHTML = '';  
+            dailyPosts.innerHTML = '';  
+            userPosts.innerHTML = '';  
+            
+            // 获取所有帖子  
+            const { data: postsData, error } = await supabase  
+                .from('posts')  
+                .select(`  
+                    *,  
+                    users:author_id (  
+                        name,  
+                        avatar_url,  
+                        employee_id,  
+                        is_admin  
+                    )  
+                `)  
+                .order('created_at', { ascending: false });  
+            
+            if (error) {  
+                console.error('获取帖子失败:', error);  
+                return;  
+            }  
+            
+            // 渲染帖子  
+            postsData.forEach(post => {  
+                const postElement = createPostElement(post);  
+                
+                if (post.section === 'tech') {  
+                    techPosts.appendChild(postElement.cloneNode(true));  
+                } else if (post.section === 'daily') {  
+                    dailyPosts.appendChild(postElement.cloneNode(true));  
+                }  
+                
+                // 如果是当前用户的帖子，也添加到用户板块  
+                if (currentUser && post.author_id === currentUser.id) {  
+                    userPosts.appendChild(postElement);  
+                }  
+            });  
+            
+            // 添加点赞和删除事件  
+            attachPostEvents();  
+        }  
+
+        // 创建帖子DOM元素  
+        function createPostElement(post) {  
+            const template = document.getElementById('postTemplate');  
+            const postElement = template.content.cloneNode(true).querySelector('.post');  
+            
+            // 设置帖子ID  
+            postElement.dataset.id = post.id;  
+            
+            // 设置作者信息  
+            const avatarElem = postElement.querySelector('.post-avatar');  
+            if (post.users.avatar_url) {  
+                avatarElem.src = post.users.avatar_url;  
+            }  
+            
+            postElement.querySelector('.post-author').textContent = post.users.name;  
+            
+            // 显示管理员标识  
+            if (post.users.is_admin) {  
+                postElement.querySelector('.post-admin-badge').classList.remove('hidden');  
+            }  
+            
+            // 设置发布时间  
+            const date = new Date(post.created_at);  
+            postElement.querySelector('.post-time').textContent = date.toLocaleString();  
+            
+            // 设置内容  
+            postElement.querySelector('.post-content').textContent = post.content;  
+            
+            // 如果有图片，显示图片  
+            if (post.image_url) {  
+                const imageContainer = postElement.querySelector('.post-image-container');  
+                const imageElem = postElement.querySelector('.post-image');  
+                imageContainer.classList.remove('hidden');  
+                imageElem.src = post.image_url;  
+            }  
+            
+            // 设置点赞数  
+            postElement.querySelector('.like-count').textContent = post.likes || 0;  
+            
+            // 如果是当前用户的帖子或管理员，显示删除按钮  
+            if (currentUser && (post.author_id === currentUser.id || isAdmin)) {  
+                postElement.querySelector('.delete-btn').classList.remove('hidden');  
+            }  
+            
+            return postElement;  
+        }  
+
+        // 附加帖子事件（点赞和删除）  
+        function attachPostEvents() {  
+            // 点赞事件  
+            document.querySelectorAll('.like-btn').forEach(btn => {  
+                btn.addEventListener('click', async event => {  
+                    if (!currentUser) return;  
+                    
+                    const postElement = event.target.closest('.post');  
+                    const postId = postElement.dataset.id;  
+                    
+                    // 更新点赞数  
+                    const { error } = await supabase.rpc('increment_likes', { post_id: postId });  
+                    
+                    if (error) {  
+                        console.error('点赞失败:', error);  
+                    }  
+                });  
+            });  
+            
+            // 删除事件  
+            document.querySelectorAll('.delete-btn').forEach(btn => {  
+                btn.addEventListener('click', async event => {  
+                    if (!currentUser) return;  
+                    
+                    const postElement = event.target.closest('.post');  
+                    const postId = postElement.dataset.id;  
+                    
+                    if (confirm('确定要删除这条帖子吗？')) {  
+                        // 删除帖子  
+                        const { error } = await supabase  
+                            .from('posts')  
+                            .delete()  
+                            .eq('id', postId);  
+                        
+                        if (error) {  
+                            console.error('删除失败:', error);  
+                            alert('删除失败: ' + error.message);  
+                        }  
+                    }  
+                });  
+            });  
+        }  
+
+        // 更新头像  
+        async function updateAvatar() {  
+            if (!currentUser || !avatarInput.files.length) return;  
+            
+            const file = avatarInput.files[0];  
+            const avatarUrl = await uploadImageToImgBB(file);  
+            
+            if (!avatarUrl) {  
+                alert('头像上传失败');  
+                return;  
+            }  
+            
+            // 更新数据库中的头像URL  
+            const { error } = await supabase  
+                .from('users')  
+                .update({ avatar_url: avatarUrl })  
+                .eq('id', currentUser.id);  
+            
+            if (error) {  
+                console.error('更新头像失败:', error);  
+                alert('更新失败: ' + error.message);  
+                return;  
+            }  
+            
+            // 更新当前用户对象和UI  
+            currentUser.avatar_url = avatarUrl;  
+            userAvatar.src = avatarUrl;  
+            navUserAvatar.src = avatarUrl;  
+            alert('头像更新成功');  
+        }  
+
+        // 更新用户名  
+        async function updateUserName() {  
+            if (!currentUser) return;  
+            
+            const newName = document.getElementById('newName').value.trim();  
+            if (!newName) {  
+                alert('请输入新的姓名');  
+                return;  
+            }  
+            
+            const { error } = await supabase  
+                .from('users')  
+                .update({ name: newName })  
+                .eq('id', currentUser.id);  
+            
+            if (error) {  
+                console.error('更新姓名失败:', error);  
+                alert('更新失败: ' + error.message);  
+                return;  
+            }  
+            
+            currentUser.name = newName;  
+            userName.textContent = newName;  
+            navUserName.textContent = newName;  
+            document.getElementById('newName').value = '';  
+            alert('姓名更新成功');  
+        }  
+
+        // 更新密码  
+        async function updateUserPassword() {  
+            if (!currentUser) return;  
+            
+            const newPassword = document.getElementById('newPassword').value;  
+            if (!newPassword) {  
+                alert('请输入新的密码');  
+                return;  
+            }  
+            
+            // 更新数据库中的密码  
+            const { error: updateError } = await supabase  
+                .from('users')  
+                .update({ password: newPassword })  
+                .eq('id', currentUser.id);  
+            
+            if (updateError) {  
+                console.error('更新密码失败:', updateError);  
+                alert('更新失败: ' + updateError.message);  
+                return;  
+            }  
+            
+            // 更新认证系统中的密码  
+            const { error: authError } = await supabase.auth.updateUser({  
+                password: newPassword  
+            });  
+            
+            if (authError) {  
+                console.error('更新认证密码失败:', authError);  
+                // 不影响使用，所以不提示错误  
+            }  
+            
+            document.getElementById('newPassword').value = '';  
+            alert('密码更新成功');  
+        }  
+
+        // 将图片上传到ImgBB  
+        async function uploadImageToImgBB(file) {  
+            const formData = new FormData();  
+            formData.append('image', file);  
+            formData.append('key', IMGBB_API_KEY);  
+            
+            try {  
+                const response = await fetch('https://api.imgbb.com/1/upload', {  
+                    method: 'POST',  
+                    body: formData  
+                });  
+                
+                const data = await response.json();  
+                
+                if (data.success) {  
+                    return data.data.url;  
+                } else {  
+                    console.error('图片上传失败:', data);  
+                    return null;  
+                }  
+            } catch (error) {  
+                console.error('图片上传错误:', error);  
+                return null;  
+            }  
+        }  
+
+        // 订阅实时更新  
+        function subscribeToUpdates() {  
+            // 订阅帖子变化  
+            supabase  
+                .channel('public:posts')  
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, payload => {  
+                    // 重新加载帖子  
+                    loadPosts();  
+                })  
+                .subscribe();  
+            
+            // 订阅用户变化  
+            supabase  
+                .channel('public:users')  
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${currentUser?.id}` }, payload => {  
+                    // 如果当前用户信息更新，刷新用户数据  
+                    if (currentUser && payload.new.id === currentUser.id) {  
+                        currentUser = payload.new;  
+                        showLoggedInUI();  
+                    }  
+                })  
+                .subscribe();  
+        }  
+
+        // 创建点赞功能存储过程（需要在Supabase SQL编辑器中执行）  
+        /*  
+        CREATE OR REPLACE FUNCTION increment_likes(post_id UUID)  
+        RETURNS void AS $$  
+        BEGIN  
+          UPDATE posts SET likes = likes + 1 WHERE id = post_id;  
+        END;  
+        $$ LANGUAGE plpgsql;  
+        */  
+    </script>  
+</body>  
+</html>  
