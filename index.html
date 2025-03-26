@@ -21,6 +21,8 @@
                         <img id="navUserAvatar" class="w-8 h-8 rounded-full object-cover" src="https://via.placeholder.com/32" alt="用户头像">  
                         <span id="navUserName">加载中...</span>  
                         <button id="editProfileBtn" class="px-3 py-1 bg-blue-500 rounded hover:bg-blue-600">编辑信息</button>  
+                        <!-- 管理员设置按钮，只对管理员可见 -->  
+                        <button id="adminPanelBtn" class="hidden px-3 py-1 bg-red-500 rounded hover:bg-red-600">管理员设置</button>  
                     </div>  
                 </div>  
             </div>  
@@ -47,6 +49,29 @@
                     </div>  
                     <div class="flex justify-center">  
                         <button id="saveUserInfoBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">保存并继续</button>  
+                    </div>  
+                </div>  
+            </div>  
+
+            <!-- 管理员面板 -->  
+            <div id="adminPanelContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10 hidden">  
+                <h2 class="text-xl font-semibold mb-4 text-center">管理员设置</h2>  
+                <div class="space-y-4">  
+                    <div>  
+                        <label class="block text-gray-700 mb-1">添加管理员工号</label>  
+                        <div class="flex">  
+                            <input id="newAdminId" type="text" class="flex-grow px-4 py-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入工号">  
+                            <button id="addAdminBtn" class="px-4 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600">添加</button>  
+                        </div>  
+                    </div>  
+                    <div>  
+                        <h3 class="text-lg font-semibold mb-2">当前管理员列表</h3>  
+                        <div id="adminList" class="space-y-2 max-h-60 overflow-y-auto p-2 border rounded">  
+                            <p class="text-gray-500 text-center">加载中...</p>  
+                        </div>  
+                    </div>  
+                    <div class="flex justify-center">  
+                        <button id="closeAdminPanelBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">关闭</button>  
                     </div>  
                 </div>  
             </div>  
@@ -157,7 +182,7 @@
         <div class="post bg-white shadow-md rounded-lg p-4">  
             <div class="flex items-start space-x-3 mb-3">  
                 <img class="post-avatar w-10 h-10 rounded-full object-cover" src="https://via.placeholder.com/40" alt="用户头像">  
-                <div>  
+                <div class="flex-grow">  
                     <div class="flex items-center space-x-2">  
                         <h3 class="post-author font-semibold"></h3>  
                         <span class="post-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>  
@@ -169,15 +194,58 @@
             <div class="post-image-container mb-3 hidden">  
                 <img class="post-image max-h-96 rounded" alt="发布的图片">  
             </div>  
-            <div class="flex items-center space-x-4 text-gray-500">  
+            <div class="flex items-center space-x-4 text-gray-500 mb-3">  
                 <button class="like-btn flex items-center space-x-1 hover:text-blue-500">  
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">  
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />  
                     </svg>  
                     <span class="like-count">0</span>  
                 </button>  
+                <button class="reply-btn flex items-center space-x-1 hover:text-blue-500">  
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">  
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />  
+                    </svg>  
+                    <span>回复</span>  
+                </button>  
                 <button class="delete-btn hidden text-red-500 hover:text-red-700">删除</button>  
             </div>  
+            
+            <!-- 回复区域 -->  
+            <div class="replies-section mt-2 border-t pt-2 hidden">  
+                <div class="reply-form mb-3">  
+                    <div class="flex">  
+                        <input type="text" class="reply-input flex-grow px-3 py-1 border rounded-l focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="回复这条消息...">  
+                        <button class="send-reply-btn px-3 py-1 bg-blue-500 text-white rounded-r hover:bg-blue-600">发送</button>  
+                    </div>  
+                </div>  
+                <div class="replies-container space-y-2"></div>  
+            </div>  
+        </div>  
+    </template>  
+
+    <!-- 回复模板 -->  
+    <template id="replyTemplate">  
+        <div class="reply bg-gray-50 p-2 rounded">  
+            <div class="flex items-start">  
+                <img class="reply-avatar w-6 h-6 rounded-full object-cover mr-2" src="https://via.placeholder.com/24" alt="回复者头像">  
+                <div class="flex-grow">  
+                    <div class="flex items-center">  
+                        <span class="reply-author font-medium text-sm mr-1"></span>  
+                        <span class="reply-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>  
+                        <span class="reply-time text-gray-400 text-xs ml-auto"></span>  
+                    </div>  
+                    <p class="reply-content text-sm"></p>  
+                </div>  
+                <button class="delete-reply-btn hidden text-red-500 hover:text-red-700 text-xs ml-2">删除</button>  
+            </div>  
+        </div>  
+    </template>  
+
+    <!-- 管理员项模板 -->  
+    <template id="adminItemTemplate">  
+        <div class="admin-item flex items-center justify-between p-2 bg-gray-100 rounded">  
+            <span class="admin-id font-medium"></span>  
+            <button class="remove-admin-btn text-red-500 hover:text-red-700 text-sm">移除</button>  
         </div>  
     </template>  
 
@@ -197,12 +265,12 @@
         firebase.initializeApp(firebaseConfig);  
         const database = firebase.database();  
         
-        // 管理员工号列表  
-        const ADMIN_EMPLOYEE_IDS = ['admin001', 'admin002'];  
-
         // 当前用户对象  
         let currentUser = null;  
         let isAdmin = false;  
+        
+        // 是否已加载过帖子的标志，避免重复处理  
+        let postsInitialized = false;  
 
         // 显示/隐藏加载遮罩  
         function showLoading(show = true) {  
@@ -234,6 +302,9 @@
         document.addEventListener('DOMContentLoaded', () => {  
             console.log('页面加载完成');  
             
+            // 初始化管理员列表  
+            initializeAdminList();  
+            
             // 从本地存储加载用户信息  
             loadUserFromLocalStorage();  
 
@@ -242,6 +313,11 @@
 
             // 编辑信息按钮  
             document.getElementById('editProfileBtn').addEventListener('click', showUserInfoForm);  
+            
+            // 管理员面板按钮  
+            document.getElementById('adminPanelBtn').addEventListener('click', showAdminPanel);  
+            document.getElementById('closeAdminPanelBtn').addEventListener('click', hideAdminPanel);  
+            document.getElementById('addAdminBtn').addEventListener('click', addNewAdmin);  
 
             // 板块切换  
             document.querySelectorAll('.section-btn').forEach(btn => {  
@@ -283,22 +359,223 @@
             document.getElementById('updateNameBtn').addEventListener('click', updateUserName);  
             document.getElementById('updateEmployeeIdBtn').addEventListener('click', updateUserEmployeeId);  
             
-            // 初始化后立即加载帖子  
+            // 初始化后，添加初始帖子并设置监听  
             if (currentUser) {  
-                loadPosts();  
+                addInitialPostsIfNeeded();  
+                setupRealTimeListeners();  
+            }  
+        });  
+
+        // 初始化管理员列表  
+        function initializeAdminList() {  
+            // 检查管理员列表是否存在，如果不存在则初始化  
+            database.ref('admins').once('value').then((snapshot) => {  
+                if (!snapshot.exists()) {  
+                    // 创建默认管理员列表  
+                    const defaultAdmins = {  
+                        'admin001': true,   
+                        'admin002': true  
+                    };  
+                    database.ref('admins').set(defaultAdmins);  
+                }  
+                
+                // 设置管理员列表变化监听  
+                database.ref('admins').on('value', (snapshot) => {  
+                    updateAdminList(snapshot);  
+                    
+                    // 如果当前用户已登录，更新其管理员状态  
+                    if (currentUser) {  
+                        checkAndUpdateAdminStatus();  
+                    }  
+                });  
+            });  
+        }  
+        
+        // 更新管理员列表UI  
+        function updateAdminList(snapshot) {  
+            const adminList = document.getElementById('adminList');  
+            adminList.innerHTML = '';  
+            
+            if (!snapshot.exists()) {  
+                adminList.innerHTML = '<p class="text-gray-500 text-center">暂无管理员</p>';  
+                return;  
             }  
             
-            // 设置实时监听  
-            setupRealTimeListeners();  
-        });  
+            const admins = [];  
+            snapshot.forEach((childSnapshot) => {  
+                admins.push(childSnapshot.key);  
+            });  
+            
+            if (admins.length === 0) {  
+                adminList.innerHTML = '<p class="text-gray-500 text-center">暂无管理员</p>';  
+                return;  
+            }  
+            
+            // 按字母顺序排序  
+            admins.sort();  
+            
+            // 添加到UI  
+            const template = document.getElementById('adminItemTemplate');  
+            
+            admins.forEach(adminId => {  
+                const adminElement = template.content.cloneNode(true).querySelector('.admin-item');  
+                adminElement.querySelector('.admin-id').textContent = adminId;  
+                
+                // 添加移除管理员事件  
+                adminElement.querySelector('.remove-admin-btn').addEventListener('click', () => {  
+                    removeAdmin(adminId);  
+                });  
+                
+                adminList.appendChild(adminElement);  
+            });  
+        }  
+        
+        // 添加新管理员  
+        function addNewAdmin() {  
+            if (!isAdmin) {  
+                showToast('只有管理员可以添加其他管理员', false);  
+                return;  
+            }  
+            
+            const newAdminId = document.getElementById('newAdminId').value.trim();  
+            if (!newAdminId) {  
+                showToast('请输入工号', false);  
+                return;  
+            }  
+            
+            // 检查是否已经是管理员  
+            database.ref(`admins/${newAdminId}`).once('value').then((snapshot) => {  
+                if (snapshot.exists()) {  
+                    showToast('该工号已经是管理员', false);  
+                    return;  
+                }  
+                
+                // 添加到管理员列表  
+                database.ref(`admins/${newAdminId}`).set(true)  
+                    .then(() => {  
+                        document.getElementById('newAdminId').value = '';  
+                        showToast(`已将工号 ${newAdminId} 设为管理员`);  
+                    })  
+                    .catch(error => {  
+                        console.error('添加管理员失败:', error);  
+                        showToast('添加管理员失败: ' + error.message, false);  
+                    });  
+            });  
+        }  
+        
+        // 移除管理员  
+        function removeAdmin(adminId) {  
+            if (!isAdmin) {  
+                showToast('只有管理员可以移除其他管理员', false);  
+                return;  
+            }  
+            
+            // 检查是否是最后一个管理员  
+            database.ref('admins').once('value').then((snapshot) => {  
+                const adminCount = Object.keys(snapshot.val() || {}).length;  
+                
+                if (adminCount <= 1) {  
+                    showToast('无法移除最后一个管理员', false);  
+                    return;  
+                }  
+                
+                // 从管理员列表中移除  
+                database.ref(`admins/${adminId}`).remove()  
+                    .then(() => {  
+                        showToast(`已移除管理员 ${adminId}`);  
+                    })  
+                    .catch(error => {  
+                        console.error('移除管理员失败:', error);  
+                        showToast('移除管理员失败: ' + error.message, false);  
+                    });  
+            });  
+        }  
+        
+        // 显示管理员面板  
+        function showAdminPanel() {  
+            if (!isAdmin) {  
+                showToast('只有管理员可以访问设置', false);  
+                return;  
+            }  
+            
+            document.getElementById('mainContainer').classList.add('hidden');  
+            document.getElementById('adminPanelContainer').classList.remove('hidden');  
+            
+            // 加载最新管理员列表  
+            database.ref('admins').once('value').then(updateAdminList);  
+        }  
+        
+        // 隐藏管理员面板  
+        function hideAdminPanel() {  
+            document.getElementById('adminPanelContainer').classList.add('hidden');  
+            document.getElementById('mainContainer').classList.remove('hidden');  
+        }  
+        
+        // 检查并更新当前用户的管理员状态  
+        function checkAndUpdateAdminStatus() {  
+            if (!currentUser) return;  
+            
+            database.ref(`admins/${currentUser.employee_id}`).once('value').then((snapshot) => {  
+                isAdmin = snapshot.exists();  
+                
+                // 更新UI  
+                updateAdminUI();  
+                
+                // 如果用户已经发布过帖子或回复，也更新这些内容中的管理员状态  
+                if (isAdmin !== currentUser.is_admin) {  
+                    updateUserContentAdminStatus();  
+                    
+                    // 更新currentUser对象  
+                    currentUser.is_admin = isAdmin;  
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+                }  
+            });  
+        }  
+        
+        // 更新管理员UI显示  
+        function updateAdminUI() {  
+            // 导航栏管理员按钮  
+            document.getElementById('adminPanelBtn').classList.toggle('hidden', !isAdmin);  
+            
+            // 个人资料中的管理员标识  
+            document.getElementById('adminBadge').classList.toggle('hidden', !isAdmin);  
+        }  
+        
+        // 更新用户发布内容中的管理员状态  
+        function updateUserContentAdminStatus() {  
+            if (!currentUser) return;  
+            
+            // 更新帖子  
+            database.ref('posts').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')  
+                .then((snapshot) => {  
+                    snapshot.forEach((childSnapshot) => {  
+                        childSnapshot.ref.update({ is_admin: isAdmin });  
+                    });  
+                });  
+            
+            // 更新回复  
+            database.ref('replies').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')  
+                .then((snapshot) => {  
+                    snapshot.forEach((childSnapshot) => {  
+                        childSnapshot.ref.update({ is_admin: isAdmin });  
+                    });  
+                });  
+        }  
 
         // 从本地存储加载用户信息  
         function loadUserFromLocalStorage() {  
             const savedUser = localStorage.getItem('currentUser');  
             if (savedUser) {  
                 currentUser = JSON.parse(savedUser);  
-                isAdmin = ADMIN_EMPLOYEE_IDS.includes(currentUser.employee_id);  
+                
+                // 从Firebase获取最新的管理员状态  
+                checkAndUpdateAdminStatus();  
+                
                 showMainUI();  
+                
+                // 加载帖子和设置监听  
+                addInitialPostsIfNeeded();  
+                setupRealTimeListeners();  
             } else {  
                 showUserInfoForm();  
             }  
@@ -323,7 +600,7 @@
                 id: generateId()  
             };  
             
-            isAdmin = ADMIN_EMPLOYEE_IDS.includes(employeeId);  
+            // 检查是否为管理员（将在saveUserToLocalStorage完成后进行）  
             
             // 如果有头像，上传头像  
             if (avatarFile) {  
@@ -340,15 +617,24 @@
 
         // 保存用户到本地存储并更新UI  
         function saveUserToLocalStorage() {  
+            // 先保存基本信息  
             localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+            
+            // 检查是否为管理员  
+            checkAndUpdateAdminStatus();  
+            
             showMainUI();  
             showToast('用户信息已保存');  
-            loadPosts(); // 加载帖子  
+            
+            // 设置帖子监听和加载初始数据  
+            addInitialPostsIfNeeded();  
+            setupRealTimeListeners();  
         }  
 
         // 显示用户信息输入表单  
         function showUserInfoForm() {  
             document.getElementById('userInfoContainer').classList.remove('hidden');  
+            document.getElementById('adminPanelContainer').classList.add('hidden');  
             document.getElementById('mainContainer').classList.add('hidden');  
             document.getElementById('userNav').classList.add('hidden');  
             
@@ -362,6 +648,7 @@
         // 显示主要UI  
         function showMainUI() {  
             document.getElementById('userInfoContainer').classList.add('hidden');  
+            document.getElementById('adminPanelContainer').classList.add('hidden');  
             document.getElementById('mainContainer').classList.remove('hidden');  
             document.getElementById('userNav').classList.remove('hidden');  
             
@@ -378,12 +665,8 @@
                 document.getElementById('profileAvatar').src = currentUser.avatar_url;  
             }  
             
-            // 显示管理员标识  
-            if (isAdmin) {  
-                document.getElementById('adminBadge').classList.remove('hidden');  
-            } else {  
-                document.getElementById('adminBadge').classList.add('hidden');  
-            }  
+            // 显示管理员标识和按钮  
+            updateAdminUI();  
         }  
 
         // 生成唯一ID  
@@ -391,11 +674,22 @@
             return Date.now().toString(36) + Math.random().toString(36).substr(2);  
         }  
 
-        // 设置实时监听  
+        // 设置实时监听 - 修复了重复问题  
         function setupRealTimeListeners() {  
-            // 监听帖子变化  
+            if (postsInitialized) return; // 避免重复设置监听器  
+            
+            postsInitialized = true;  
+            
+            // 监听帖子变化 - 重点修改了这里以避免重复  
             database.ref('posts').on('value', (snapshot) => {  
-                loadPosts(snapshot);  
+                console.log('收到帖子更新');  
+                renderPosts(snapshot);  
+            });  
+            
+            // 监听回复变化  
+            database.ref('replies').on('value', (snapshot) => {  
+                console.log('收到回复更新');  
+                updateAllReplies(snapshot);  
             });  
         }  
 
@@ -459,9 +753,9 @@
                 showLoading(false);  
             }  
         }  
-
-        // 加载帖子  
-        function loadPosts(snapshot = null) {  
+        
+        // 渲染帖子 - 修改以避免重复  
+        function renderPosts(snapshot) {  
             showLoading(true);  
             
             try {  
@@ -470,56 +764,42 @@
                 document.getElementById('dailyPosts').innerHTML = '';  
                 document.getElementById('userPosts').innerHTML = '';  
                 
-                // 如果没有提供snapshot，从Firebase获取数据  
-                if (!snapshot) {  
-                    database.ref('posts').once('value').then((dataSnapshot) => {  
-                        renderPosts(dataSnapshot);  
-                        showLoading(false);  
-                    }).catch(error => {  
-                        console.error('获取帖子失败:', error);  
-                        showToast('获取帖子失败', false);  
-                        showLoading(false);  
-                    });  
-                } else {  
-                    // 使用提供的snapshot  
-                    renderPosts(snapshot);  
-                    showLoading(false);  
-                }  
+                const posts = [];  
+                snapshot.forEach((childSnapshot) => {  
+                    posts.push(childSnapshot.val());  
+                });  
+                
+                // 按创建时间排序，最新的在前面  
+                posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));  
+                
+                // 渲染到各个板块  
+                posts.forEach(post => {  
+                    const postElement = createPostElement(post);  
+                    
+                    if (post.section === 'tech') {  
+                        document.getElementById('techPosts').appendChild(postElement.cloneNode(true));  
+                    } else if (post.section === 'daily') {  
+                        document.getElementById('dailyPosts').appendChild(postElement.cloneNode(true));  
+                    }  
+                    
+                    // 如果是当前用户的帖子，也添加到用户板块  
+                    if (currentUser && post.author_employee_id === currentUser.employee_id) {  
+                        document.getElementById('userPosts').appendChild(postElement);  
+                    }  
+                });  
+                
+                // 添加事件  
+                attachPostEvents();  
+                
+                // 更新所有回复状态  
+                database.ref('replies').once('value').then(updateAllReplies);  
+                
             } catch (error) {  
-                console.error('加载帖子出错:', error);  
+                console.error('渲染帖子出错:', error);  
                 showToast('加载帖子出错', false);  
+            } finally {  
                 showLoading(false);  
             }  
-        }  
-        
-        // 渲染帖子  
-        function renderPosts(snapshot) {  
-            const posts = [];  
-            snapshot.forEach((childSnapshot) => {  
-                posts.push(childSnapshot.val());  
-            });  
-            
-            // 按创建时间排序，最新的在前面  
-            posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));  
-            
-            // 渲染到各个板块  
-            posts.forEach(post => {  
-                const postElement = createPostElement(post);  
-                
-                if (post.section === 'tech') {  
-                    document.getElementById('techPosts').appendChild(postElement.cloneNode(true));  
-                } else if (post.section === 'daily') {  
-                    document.getElementById('dailyPosts').appendChild(postElement.cloneNode(true));  
-                }  
-                
-                // 如果是当前用户的帖子，也添加到用户板块  
-                if (currentUser && post.author_employee_id === currentUser.employee_id) {  
-                    document.getElementById('userPosts').appendChild(postElement);  
-                }  
-            });  
-            
-            // 添加点赞和删除事件  
-            attachPostEvents();  
         }  
 
         // 创建帖子DOM元素  
@@ -569,7 +849,7 @@
             return postElement;  
         }  
 
-        // 附加帖子事件（点赞和删除）  
+        // 附加帖子事件（点赞、删除、回复）  
         function attachPostEvents() {  
             // 点赞事件  
             document.querySelectorAll('.like-btn').forEach(btn => {  
@@ -579,20 +859,9 @@
                     const postElement = event.currentTarget.closest('.post');  
                     const postId = postElement.dataset.id;  
                     
-                    // 获取当前点赞数  
-                    const likeCountElem = postElement.querySelector('.like-count');  
-                    const currentLikes = parseInt(likeCountElem.textContent);  
-                    
                     // 更新Firebase中的点赞数  
                     database.ref(`posts/${postId}/likes`).transaction((likes) => {  
                         return (likes || 0) + 1;  
-                    }).then(() => {  
-                        // 更新UI显示  
-                        likeCountElem.textContent = currentLikes + 1;  
-                        showToast('点赞成功');  
-                    }).catch(error => {  
-                        console.error('点赞失败:', error);  
-                        showToast('点赞失败', false);  
                     });  
                 });  
             });  
@@ -610,10 +879,210 @@
                         database.ref(`posts/${postId}`).remove()  
                             .then(() => {  
                                 showToast('删除成功');  
+                                
+                                // 同时删除所有相关回复  
+                                database.ref('replies').orderByChild('post_id').equalTo(postId).once('value', (snapshot) => {  
+                                    snapshot.forEach((childSnapshot) => {  
+                                        childSnapshot.ref.remove();  
+                                    });  
+                                });  
                             })  
                             .catch(error => {  
                                 console.error('删除失败:', error);  
                                 showToast('删除失败', false);  
+                            });  
+                    }  
+                });  
+            });  
+            
+            // 回复按钮事件  
+            document.querySelectorAll('.reply-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!currentUser) {  
+                        showToast('请先填写用户信息', false);  
+                        return;  
+                    }  
+                    
+                    const postElement = event.currentTarget.closest('.post');  
+                    const repliesSection = postElement.querySelector('.replies-section');  
+                    
+                    // 切换回复区域显示/隐藏  
+                    if (repliesSection.classList.contains('hidden')) {  
+                        repliesSection.classList.remove('hidden');  
+                        
+                        // 立即加载此帖子的所有回复  
+                        loadRepliesForPost(postElement.dataset.id);  
+                    } else {  
+                        repliesSection.classList.add('hidden');  
+                    }  
+                });  
+            });  
+            
+            // 发送回复事件  
+            document.querySelectorAll('.send-reply-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!currentUser) return;  
+                    
+                    const postElement = event.currentTarget.closest('.post');  
+                    const postId = postElement.dataset.id;  
+                    const replyInput = postElement.querySelector('.reply-input');  
+                    const content = replyInput.value.trim();  
+                    
+                    if (!content) {  
+                        showToast('请输入回复内容', false);  
+                        return;  
+                    }  
+                    
+                    // 创建回复对象  
+                    const replyId = generateId();  
+                    const newReply = {  
+                        id: replyId,  
+                        post_id: postId,  
+                        author_name: currentUser.name,  
+                        author_employee_id: currentUser.employee_id,  
+                        author_avatar: currentUser.avatar_url,  
+                        content: content,  
+                        is_admin: isAdmin,  
+                        created_at: new Date().toISOString()  
+                    };  
+                    
+                    // 保存到Firebase  
+                    database.ref('replies/' + replyId).set(newReply)  
+                        .then(() => {  
+                            replyInput.value = '';  
+                            showToast('回复成功');  
+                        })  
+                        .catch(error => {  
+                            console.error('回复失败:', error);  
+                            showToast('回复失败: ' + error.message, false);  
+                        });  
+                });  
+            });  
+        }  
+        
+        // 加载特定帖子的回复  
+        function loadRepliesForPost(postId) {  
+            const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);  
+            
+            database.ref('replies').orderByChild('post_id').equalTo(postId).once('value', (snapshot) => {  
+                const replies = [];  
+                snapshot.forEach((childSnapshot) => {  
+                    replies.push(childSnapshot.val());  
+                });  
+                
+                // 按创建时间排序  
+                replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));  
+                
+                postElements.forEach(postElement => {  
+                    const repliesContainer = postElement.querySelector('.replies-container');  
+                    repliesContainer.innerHTML = '';  
+                    
+                    if (replies.length === 0) {  
+                        repliesContainer.innerHTML = '<p class="text-gray-500 text-sm text-center">暂无回复</p>';  
+                    } else {  
+                        replies.forEach(reply => {  
+                            repliesContainer.appendChild(createReplyElement(reply));  
+                        });  
+                    }  
+                });  
+                
+                // 添加删除回复事件  
+                attachReplyEvents();  
+            });  
+        }  
+        
+        // 更新所有回复  
+        function updateAllReplies(snapshot) {  
+            // 获取所有回复数据  
+            const allReplies = {};  
+            snapshot.forEach(childSnapshot => {  
+                const reply = childSnapshot.val();  
+                if (!allReplies[reply.post_id]) {  
+                    allReplies[reply.post_id] = [];  
+                }  
+                allReplies[reply.post_id].push(reply);  
+            });  
+            
+            // 更新每个帖子的回复显示  
+            for (const postId in allReplies) {  
+                const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);  
+                
+                // 按创建时间排序  
+                allReplies[postId].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));  
+                
+                postElements.forEach(postElement => {  
+                    // 只有回复区域已经展开的帖子才更新回复  
+                    const repliesSection = postElement.querySelector('.replies-section');  
+                    if (!repliesSection.classList.contains('hidden')) {  
+                        const repliesContainer = postElement.querySelector('.replies-container');  
+                        repliesContainer.innerHTML = '';  
+                        
+                        allReplies[postId].forEach(reply => {  
+                            repliesContainer.appendChild(createReplyElement(reply));  
+                        });  
+                    }  
+                });  
+            }  
+            
+            // 添加回复事件  
+            attachReplyEvents();  
+        }  
+        
+        // 创建回复元素  
+        function createReplyElement(reply) {  
+            const template = document.getElementById('replyTemplate');  
+            const replyElement = template.content.cloneNode(true).querySelector('.reply');  
+            
+            // 设置回复ID  
+            replyElement.dataset.id = reply.id;  
+            
+            // 设置作者信息  
+            const avatarElem = replyElement.querySelector('.reply-avatar');  
+            if (reply.author_avatar) {  
+                avatarElem.src = reply.author_avatar;  
+            }  
+            
+            replyElement.querySelector('.reply-author').textContent = reply.author_name;  
+            
+            // 显示管理员标识  
+            if (reply.is_admin) {  
+                replyElement.querySelector('.reply-admin-badge').classList.remove('hidden');  
+            }  
+            
+            // 设置发布时间  
+            const date = new Date(reply.created_at);  
+            replyElement.querySelector('.reply-time').textContent = date.toLocaleString();  
+            
+            // 设置内容  
+            replyElement.querySelector('.reply-content').textContent = reply.content;  
+            
+            // 如果是当前用户的回复或管理员，显示删除按钮  
+            if (currentUser && (reply.author_employee_id === currentUser.employee_id || isAdmin)) {  
+                replyElement.querySelector('.delete-reply-btn').classList.remove('hidden');  
+            }  
+            
+            return replyElement;  
+        }  
+        
+        // 添加回复相关事件  
+        function attachReplyEvents() {  
+            // 删除回复事件  
+            document.querySelectorAll('.delete-reply-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!currentUser) return;  
+                    
+                    const replyElement = event.currentTarget.closest('.reply');  
+                    const replyId = replyElement.dataset.id;  
+                    
+                    if (confirm('确定要删除这条回复吗？')) {  
+                        // 从Firebase删除回复  
+                        database.ref(`replies/${replyId}`).remove()  
+                            .then(() => {  
+                                showToast('删除回复成功');  
+                            })  
+                            .catch(error => {  
+                                console.error('删除回复失败:', error);  
+                                showToast('删除回复失败', false);  
                             });  
                     }  
                 });  
@@ -646,6 +1115,9 @@
                 
                 // 更新该用户发布的所有帖子中的头像  
                 updatePostsWithNewAvatar(avatarUrl);  
+                
+                // 更新该用户发布的所有回复中的头像  
+                updateRepliesWithNewAvatar(avatarUrl);  
             } catch (error) {  
                 console.error('更新头像失败:', error);  
                 showToast('更新头像失败', false);  
@@ -663,6 +1135,20 @@
                 .then((snapshot) => {  
                     snapshot.forEach((childSnapshot) => {  
                         // 更新每个帖子的作者头像  
+                        childSnapshot.ref.update({ author_avatar: newAvatarUrl });  
+                    });  
+                });  
+        }  
+        
+        // 更新用户所有回复中的头像  
+        function updateRepliesWithNewAvatar(newAvatarUrl) {  
+            if (!currentUser) return;  
+            
+            // 获取该用户的所有回复  
+            database.ref('replies').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')  
+                .then((snapshot) => {  
+                    snapshot.forEach((childSnapshot) => {  
+                        // 更新每个回复的作者头像  
                         childSnapshot.ref.update({ author_avatar: newAvatarUrl });  
                     });  
                 });  
@@ -693,6 +1179,9 @@
                 // 更新该用户发布的所有帖子中的姓名  
                 updatePostsWithNewName(newName);  
                 
+                // 更新该用户发布的所有回复中的姓名  
+                updateRepliesWithNewName(newName);  
+                
                 showToast('姓名更新成功');  
             } catch (error) {  
                 console.error('更新姓名失败:', error);  
@@ -715,6 +1204,20 @@
                     });  
                 });  
         }  
+        
+        // 更新用户所有回复中的姓名  
+        function updateRepliesWithNewName(newName) {  
+            if (!currentUser) return;  
+            
+            // 获取该用户的所有回复  
+            database.ref('replies').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')  
+                .then((snapshot) => {  
+                    snapshot.forEach((childSnapshot) => {  
+                        // 更新每个回复的作者姓名  
+                        childSnapshot.ref.update({ author_name: newName });  
+                    });  
+                });  
+        }  
 
         // 更新工号  
         function updateUserEmployeeId() {  
@@ -733,24 +1236,31 @@
                 
                 // 更新当前用户工号  
                 currentUser.employee_id = newEmployeeId;  
-                isAdmin = ADMIN_EMPLOYEE_IDS.includes(newEmployeeId);  
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));  
                 
-                // 更新UI  
-                document.getElementById('profileEmployeeId').textContent = newEmployeeId;  
-                document.getElementById('newEmployeeId').value = '';  
-                
-                // 更新管理员标识  
-                if (isAdmin) {  
-                    document.getElementById('adminBadge').classList.remove('hidden');  
-                } else {  
-                    document.getElementById('adminBadge').classList.add('hidden');  
-                }  
-                
-                // 更新该用户发布的所有帖子中的工号和管理员状态  
-                updatePostsWithNewEmployeeId(oldEmployeeId, newEmployeeId, isAdmin);  
-                
-                showToast('工号更新成功');  
+                // 检查新工号是否是管理员  
+                database.ref(`admins/${newEmployeeId}`).once('value').then((snapshot) => {  
+                    isAdmin = snapshot.exists();  
+                    
+                    // 更新UI  
+                    document.getElementById('profileEmployeeId').textContent = newEmployeeId;  
+                    document.getElementById('newEmployeeId').value = '';  
+                    
+                    // 更新管理员标识和按钮  
+                    updateAdminUI();  
+                    
+                    // 更新该用户发布的所有帖子中的工号和管理员状态  
+                    updatePostsWithNewEmployeeId(oldEmployeeId, newEmployeeId, isAdmin);  
+                    
+                    // 更新该用户发布的所有回复中的工号和管理员状态  
+                    updateRepliesWithNewEmployeeId(oldEmployeeId, newEmployeeId, isAdmin);  
+                    
+                    // 更新currentUser对象  
+                    currentUser.is_admin = isAdmin;  
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+                    
+                    showToast('工号更新成功');  
+                });  
             } catch (error) {  
                 console.error('更新工号失败:', error);  
                 showToast('更新工号失败', false);  
@@ -773,10 +1283,25 @@
                     });  
                 });  
         }  
+        
+        // 更新用户所有回复中的工号和管理员状态  
+        function updateRepliesWithNewEmployeeId(oldEmployeeId, newEmployeeId, isAdmin) {  
+            // 获取该用户的所有回复  
+            database.ref('replies').orderByChild('author_employee_id').equalTo(oldEmployeeId).once('value')  
+                .then((snapshot) => {  
+                    snapshot.forEach((childSnapshot) => {  
+                        // 更新每个回复的作者工号和管理员状态  
+                        childSnapshot.ref.update({   
+                            author_employee_id: newEmployeeId,  
+                            is_admin: isAdmin  
+                        });  
+                    });  
+                });  
+        }  
 
         // 将图片上传到ImgBB  
         async function uploadImageToImgBB(file) {  
-            const IMGBB_API_KEY = ''; // 替换为您的实际API密钥  
+            const IMGBB_API_KEY = 'b770ca69f1c22b4cd384bdf5bd18d5e2'; // 替换为您的实际API密钥  
             
             // 如果没有API密钥，使用DataURL（注意这只是临时解决方案，实际项目中应使用真实的图片服务）  
             if (!IMGBB_API_KEY) {  
@@ -792,7 +1317,7 @@
             formData.append('key', IMGBB_API_KEY);  
             
             try {  
-                const response = await fetch('https://api.imgbb.com/1/upload', {  
+                                const response = await fetch('https://api.imgbb.com/1/upload', {  
                     method: 'POST',  
                     body: formData  
                 });  
@@ -815,6 +1340,7 @@
         function addInitialPostsIfNeeded() {  
             database.ref('posts').once('value').then((snapshot) => {  
                 if (!snapshot.exists()) {  
+                    console.log('数据库为空，添加初始帖子');  
                     // 数据库为空，添加初始帖子  
                     const initialPosts = {  
                         "init1": {  
@@ -845,9 +1371,6 @@
                 }  
             });  
         }  
-
-        // 页面加载时添加初始帖子  
-        addInitialPostsIfNeeded();  
     </script>  
 </body>  
 </html>  
