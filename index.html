@@ -6,8 +6,9 @@
     <title>装备部件团支部青年π空间</title>  
     <script src="https://cdn.tailwindcss.com"></script>  
     
-    <!-- 使用 CDN 方式加载 Supabase -->  
-    <script src="https://unpkg.com/@supabase/supabase-js@2.38.4/dist/umd/supabase.js"></script>  
+    <!-- Firebase SDK -->  
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>  
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>  
 </head>  
 <body class="bg-gray-100">  
     <div class="min-h-screen flex flex-col">  
@@ -138,6 +139,19 @@
         </footer>  
     </div>  
 
+    <!-- 状态提示 -->  
+    <div id="statusToast" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-20 opacity-0">  
+        操作成功  
+    </div>  
+
+    <!-- 数据加载中遮罩 -->  
+    <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">  
+        <div class="bg-white p-4 rounded-lg shadow-lg text-center">  
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-2"></div>  
+            <p>加载中，请稍候...</p>  
+        </div>  
+    </div>  
+
     <!-- 模板 -->  
     <template id="postTemplate">  
         <div class="post bg-white shadow-md rounded-lg p-4">  
@@ -168,57 +182,59 @@
     </template>  
 
     <script>  
-        // 错误消息显示元素  
-        const errorContainer = document.createElement('div');  
-        errorContainer.style.cssText = 'position:fixed;bottom:10px;left:10px;background:rgba(220,38,38,0.9);color:white;padding:10px;border-radius:4px;z-index:9999;max-width:80%;';  
-        errorContainer.classList.add('hidden');  
-        document.body.appendChild(errorContainer);  
-
-        function showError(message) {  
-            errorContainer.textContent = message;  
-            errorContainer.classList.remove('hidden');  
-            setTimeout(() => {  
-                errorContainer.classList.add('hidden');  
-            }, 5000);  
-        }  
-
+        // Firebase 配置  
+        const firebaseConfig = {  
+            apiKey: "AIzaSyC19CX0gSWAzvFevy43EQRy4uX1A265LuM",  
+            authDomain: "youth-pi-space.firebaseapp.com",  
+            databaseURL: "https://youth-pi-space-default-rtdb.asia-southeast1.firebasedatabase.app",  
+            projectId: "youth-pi-space",  
+            storageBucket: "youth-pi-space.firebasestorage.app",  
+            messagingSenderId: "895213716516",  
+            appId: "1:895213716516:web:9548b7964aaf3074b504b1"  
+        };  
+        
+        // 初始化 Firebase  
+        firebase.initializeApp(firebaseConfig);  
+        const database = firebase.database();  
+        
         // 管理员工号列表  
         const ADMIN_EMPLOYEE_IDS = ['admin001', 'admin002'];  
 
         // 当前用户对象  
         let currentUser = null;  
         let isAdmin = false;  
-        let supabase = null;  
 
-        // 初始化Supabase  
-        function initSupabase() {  
-            try {  
-                if (typeof supabase !== 'object') {  
-                    const SUPABASE_URL = 'https://hunzuynmgdhqvjvyztwq.supabase.co';   
-                    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1bnp1eW5tZ2RocXZqdnl6dHdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4ODI1MzAsImV4cCI6MjA1ODQ1ODUzMH0.5ls_OU8cBVh-4AdLkohYKCrBYr_ITMybaY53iQZP1WI';  
-                    
-                    if (typeof window.supabase?.createClient === 'function') {  
-                        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);  
-                        console.log('Supabase 初始化成功');  
-                    } else {  
-                        console.error('Supabase 客户端加载失败');  
-                        showError('系统初始化失败，请刷新页面重试');  
-                    }  
-                }  
-            } catch (error) {  
-                console.error('初始化 Supabase 出错:', error);  
-                showError('系统初始化失败：' + error.message);  
+        // 显示/隐藏加载遮罩  
+        function showLoading(show = true) {  
+            document.getElementById('loadingOverlay').classList.toggle('hidden', !show);  
+        }  
+
+        // 状态提示  
+        function showToast(message, isSuccess = true) {  
+            const toast = document.getElementById('statusToast');  
+            toast.textContent = message;  
+            toast.classList.remove('translate-y-20', 'opacity-0');  
+            toast.classList.add('translate-y-0', 'opacity-100');  
+            
+            if (isSuccess) {  
+                toast.classList.remove('bg-red-500');  
+                toast.classList.add('bg-green-500');  
+            } else {  
+                toast.classList.remove('bg-green-500');  
+                toast.classList.add('bg-red-500');  
             }  
+            
+            setTimeout(() => {  
+                toast.classList.remove('translate-y-0', 'opacity-100');  
+                toast.classList.add('translate-y-20', 'opacity-0');  
+            }, 3000);  
         }  
 
         // 页面加载完成后初始化  
         document.addEventListener('DOMContentLoaded', () => {  
             console.log('页面加载完成');  
             
-            // 初始化Supabase客户端  
-            initSupabase();  
-
-            // 检查本地存储中是否有用户信息  
+            // 从本地存储加载用户信息  
             loadUserFromLocalStorage();  
 
             // 保存用户信息按钮  
@@ -254,18 +270,26 @@
             });  
 
             // 发布帖子  
-            document.getElementById('techPostBtn')?.addEventListener('click', () => createPost('tech'));  
-            document.getElementById('dailyPostBtn')?.addEventListener('click', () => createPost('daily'));  
+            document.getElementById('techPostBtn').addEventListener('click', () => createPost('tech'));  
+            document.getElementById('dailyPostBtn').addEventListener('click', () => createPost('daily'));  
 
             // 更换头像  
-            document.getElementById('changeAvatarBtn')?.addEventListener('click', () =>   
+            document.getElementById('changeAvatarBtn').addEventListener('click', () =>   
                 document.getElementById('avatarInput').click()  
             );  
-            document.getElementById('avatarInput')?.addEventListener('change', updateAvatar);  
+            document.getElementById('avatarInput').addEventListener('change', updateAvatar);  
 
             // 更新用户信息  
-            document.getElementById('updateNameBtn')?.addEventListener('click', updateUserName);  
-            document.getElementById('updateEmployeeIdBtn')?.addEventListener('click', updateUserEmployeeId);  
+            document.getElementById('updateNameBtn').addEventListener('click', updateUserName);  
+            document.getElementById('updateEmployeeIdBtn').addEventListener('click', updateUserEmployeeId);  
+            
+            // 初始化后立即加载帖子  
+            if (currentUser) {  
+                loadPosts();  
+            }  
+            
+            // 设置实时监听  
+            setupRealTimeListeners();  
         });  
 
         // 从本地存储加载用户信息  
@@ -275,20 +299,19 @@
                 currentUser = JSON.parse(savedUser);  
                 isAdmin = ADMIN_EMPLOYEE_IDS.includes(currentUser.employee_id);  
                 showMainUI();  
-                loadPosts();  
             } else {  
                 showUserInfoForm();  
             }  
         }  
 
-        // 保存用户信息到本地存储  
+        // 保存用户信息  
         function saveUserInfo() {  
             const name = document.getElementById('userName').value.trim();  
             const employeeId = document.getElementById('userEmployeeId').value.trim();  
             const avatarFile = document.getElementById('userAvatar').files[0];  
             
             if (!name || !employeeId) {  
-                alert('请输入姓名和工号');  
+                showToast('请输入姓名和工号', false);  
                 return;  
             }  
             
@@ -296,8 +319,8 @@
             currentUser = {  
                 name: name,  
                 employee_id: employeeId,  
-                avatar_url: null,  
-                id: Date.now().toString() // 使用时间戳作为临时ID  
+                avatar_url: 'https://via.placeholder.com/100',  
+                id: generateId()  
             };  
             
             isAdmin = ADMIN_EMPLOYEE_IDS.includes(employeeId);  
@@ -319,6 +342,8 @@
         function saveUserToLocalStorage() {  
             localStorage.setItem('currentUser', JSON.stringify(currentUser));  
             showMainUI();  
+            showToast('用户信息已保存');  
+            loadPosts(); // 加载帖子  
         }  
 
         // 显示用户信息输入表单  
@@ -361,9 +386,25 @@
             }  
         }  
 
+        // 生成唯一ID  
+        function generateId() {  
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);  
+        }  
+
+        // 设置实时监听  
+        function setupRealTimeListeners() {  
+            // 监听帖子变化  
+            database.ref('posts').on('value', (snapshot) => {  
+                loadPosts(snapshot);  
+            });  
+        }  
+
         // 创建帖子  
         async function createPost(section) {  
-            if (!supabase || !currentUser) return;  
+            if (!currentUser) {  
+                showToast('请先填写用户信息', false);  
+                return;  
+            }  
             
             const contentElem = document.getElementById(`${section}PostContent`);  
             const imageElem = document.getElementById(`${section}PostImage`);  
@@ -371,70 +412,98 @@
             const imageFile = imageElem.files[0];  
             
             if (!content) {  
-                alert('请输入内容');  
+                showToast('请输入内容', false);  
                 return;  
             }  
             
-            let imageUrl = null;  
+            showLoading(true);  
             
-            // 如果有图片，上传到ImgBB  
-            if (imageFile) {  
-                imageUrl = await uploadImageToImgBB(imageFile);  
-                if (!imageUrl) {  
-                    alert('图片上传失败');  
-                    return;  
+            try {  
+                let imageUrl = null;  
+                
+                // 如果有图片，上传到ImgBB  
+                if (imageFile) {  
+                    imageUrl = await uploadImageToImgBB(imageFile);  
+                    if (!imageUrl) {  
+                        showLoading(false);  
+                        showToast('图片上传失败', false);  
+                        return;  
+                    }  
                 }  
-            }  
-            
-            // 创建帖子  
-            const { error } = await supabase  
-                .from('posts')  
-                .insert({  
-                    author_id: currentUser.id,  
-                    author_name: currentUser.name, // 添加作者姓名  
-                    author_employee_id: currentUser.employee_id, // 添加作者工号  
-                    author_avatar: currentUser.avatar_url, // 添加作者头像  
+                
+                // 创建帖子对象  
+                const postId = generateId();  
+                const newPost = {  
+                    id: postId,  
+                    author_name: currentUser.name,  
+                    author_employee_id: currentUser.employee_id,  
+                    author_avatar: currentUser.avatar_url,  
                     content: content,  
                     image_url: imageUrl,  
                     section: section,  
-                    is_admin: isAdmin  
-                });  
-            
-            if (error) {  
+                    is_admin: isAdmin,  
+                    likes: 0,  
+                    created_at: new Date().toISOString()  
+                };  
+                
+                // 保存到Firebase  
+                await database.ref('posts/' + postId).set(newPost);  
+                
+                contentElem.value = '';  
+                imageElem.value = '';  
+                showToast('发布成功');  
+            } catch (error) {  
                 console.error('发布失败:', error);  
-                alert('发布失败: ' + error.message);  
-                return;  
+                showToast('发布失败: ' + error.message, false);  
+            } finally {  
+                showLoading(false);  
             }  
-            
-            contentElem.value = '';  
-            imageElem.value = '';  
-            
-            // 重新加载帖子  
-            loadPosts();  
         }  
 
         // 加载帖子  
-        async function loadPosts() {  
-            if (!supabase) return;  
+        function loadPosts(snapshot = null) {  
+            showLoading(true);  
             
-            // 清空现有帖子  
-            document.getElementById('techPosts').innerHTML = '';  
-            document.getElementById('dailyPosts').innerHTML = '';  
-            document.getElementById('userPosts').innerHTML = '';  
-            
-            // 获取所有帖子  
-            const { data: postsData, error } = await supabase  
-                .from('posts')  
-                .select('*')  
-                .order('created_at', { ascending: false });  
-            
-            if (error) {  
-                console.error('获取帖子失败:', error);  
-                return;  
+            try {  
+                // 清空现有帖子  
+                document.getElementById('techPosts').innerHTML = '';  
+                document.getElementById('dailyPosts').innerHTML = '';  
+                document.getElementById('userPosts').innerHTML = '';  
+                
+                // 如果没有提供snapshot，从Firebase获取数据  
+                if (!snapshot) {  
+                    database.ref('posts').once('value').then((dataSnapshot) => {  
+                        renderPosts(dataSnapshot);  
+                        showLoading(false);  
+                    }).catch(error => {  
+                        console.error('获取帖子失败:', error);  
+                        showToast('获取帖子失败', false);  
+                        showLoading(false);  
+                    });  
+                } else {  
+                    // 使用提供的snapshot  
+                    renderPosts(snapshot);  
+                    showLoading(false);  
+                }  
+            } catch (error) {  
+                console.error('加载帖子出错:', error);  
+                showToast('加载帖子出错', false);  
+                showLoading(false);  
             }  
+        }  
+        
+        // 渲染帖子  
+        function renderPosts(snapshot) {  
+            const posts = [];  
+            snapshot.forEach((childSnapshot) => {  
+                posts.push(childSnapshot.val());  
+            });  
             
-            // 渲染帖子  
-            postsData.forEach(post => {  
+            // 按创建时间排序，最新的在前面  
+            posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));  
+            
+            // 渲染到各个板块  
+            posts.forEach(post => {  
                 const postElement = createPostElement(post);  
                 
                 if (post.section === 'tech') {  
@@ -504,48 +573,48 @@
         function attachPostEvents() {  
             // 点赞事件  
             document.querySelectorAll('.like-btn').forEach(btn => {  
-                btn.addEventListener('click', async event => {  
+                btn.addEventListener('click', event => {  
                     if (!currentUser) return;  
                     
-                    const postElement = event.target.closest('.post');  
+                    const postElement = event.currentTarget.closest('.post');  
                     const postId = postElement.dataset.id;  
                     
-                    // 更新点赞数  
-                    const { error } = await supabase.rpc('increment_likes', { post_id: postId });  
+                    // 获取当前点赞数  
+                    const likeCountElem = postElement.querySelector('.like-count');  
+                    const currentLikes = parseInt(likeCountElem.textContent);  
                     
-                    if (error) {  
+                    // 更新Firebase中的点赞数  
+                    database.ref(`posts/${postId}/likes`).transaction((likes) => {  
+                        return (likes || 0) + 1;  
+                    }).then(() => {  
+                        // 更新UI显示  
+                        likeCountElem.textContent = currentLikes + 1;  
+                        showToast('点赞成功');  
+                    }).catch(error => {  
                         console.error('点赞失败:', error);  
-                    } else {  
-                        // 直接更新UI，无需等待重新加载  
-                        const likeCount = postElement.querySelector('.like-count');  
-                        likeCount.textContent = (parseInt(likeCount.textContent) + 1).toString();  
-                    }  
+                        showToast('点赞失败', false);  
+                    });  
                 });  
             });  
             
             // 删除事件  
             document.querySelectorAll('.delete-btn').forEach(btn => {  
-                btn.addEventListener('click', async event => {  
+                btn.addEventListener('click', event => {  
                     if (!currentUser) return;  
                     
-                    const postElement = event.target.closest('.post');  
+                    const postElement = event.currentTarget.closest('.post');  
                     const postId = postElement.dataset.id;  
                     
                     if (confirm('确定要删除这条帖子吗？')) {  
-                        // 删除帖子  
-                        const { error } = await supabase  
-                            .from('posts')  
-                            .delete()  
-                            .eq('id', postId);  
-                        
-                        if (error) {  
-                            console.error('删除失败:', error);  
-                            alert('删除失败: ' + error.message);  
-                        } else {  
-                            // 直接从DOM中移除帖子元素  
-                            const allPostElements = document.querySelectorAll(`.post[data-id="${postId}"]`);  
-                            allPostElements.forEach(elem => elem.remove());  
-                        }  
+                        // 从Firebase删除帖子  
+                        database.ref(`posts/${postId}`).remove()  
+                            .then(() => {  
+                                showToast('删除成功');  
+                            })  
+                            .catch(error => {  
+                                console.error('删除失败:', error);  
+                                showToast('删除失败', false);  
+                            });  
                     }  
                 });  
             });  
@@ -555,22 +624,48 @@
         async function updateAvatar() {  
             if (!currentUser || !document.getElementById('avatarInput').files.length) return;  
             
-            const file = document.getElementById('avatarInput').files[0];  
-            const avatarUrl = await uploadImageToImgBB(file);  
+            showLoading(true);  
             
-            if (!avatarUrl) {  
-                alert('头像上传失败');  
-                return;  
+            try {  
+                const file = document.getElementById('avatarInput').files[0];  
+                const avatarUrl = await uploadImageToImgBB(file);  
+                
+                if (!avatarUrl) {  
+                    showToast('头像上传失败', false);  
+                    return;  
+                }  
+                
+                // 更新当前用户头像  
+                currentUser.avatar_url = avatarUrl;  
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+                
+                // 更新UI  
+                document.getElementById('profileAvatar').src = avatarUrl;  
+                document.getElementById('navUserAvatar').src = avatarUrl;  
+                showToast('头像更新成功');  
+                
+                // 更新该用户发布的所有帖子中的头像  
+                updatePostsWithNewAvatar(avatarUrl);  
+            } catch (error) {  
+                console.error('更新头像失败:', error);  
+                showToast('更新头像失败', false);  
+            } finally {  
+                showLoading(false);  
             }  
+        }  
+        
+        // 更新用户所有帖子中的头像  
+        function updatePostsWithNewAvatar(newAvatarUrl) {  
+            if (!currentUser) return;  
             
-            // 更新当前用户头像  
-            currentUser.avatar_url = avatarUrl;  
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));  
-            
-            // 更新UI  
-            document.getElementById('profileAvatar').src = avatarUrl;  
-            document.getElementById('navUserAvatar').src = avatarUrl;  
-            alert('头像更新成功');  
+            // 获取该用户的所有帖子  
+            database.ref('posts').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')  
+                .then((snapshot) => {  
+                    snapshot.forEach((childSnapshot) => {  
+                        // 更新每个帖子的作者头像  
+                        childSnapshot.ref.update({ author_avatar: newAvatarUrl });  
+                    });  
+                });  
         }  
 
         // 更新用户名  
@@ -579,19 +674,46 @@
             
             const newName = document.getElementById('newName').value.trim();  
             if (!newName) {  
-                alert('请输入新的姓名');  
+                showToast('请输入新的姓名', false);  
                 return;  
             }  
             
-            // 更新当前用户姓名  
-            currentUser.name = newName;  
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+            showLoading(true);  
             
-            // 更新UI  
-            document.getElementById('profileName').textContent = newName;  
-            document.getElementById('navUserName').textContent = newName;  
-            document.getElementById('newName').value = '';  
-            alert('姓名更新成功');  
+            try {  
+                // 更新当前用户姓名  
+                currentUser.name = newName;  
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+                
+                // 更新UI  
+                document.getElementById('profileName').textContent = newName;  
+                document.getElementById('navUserName').textContent = newName;  
+                document.getElementById('newName').value = '';  
+                
+                // 更新该用户发布的所有帖子中的姓名  
+                updatePostsWithNewName(newName);  
+                
+                showToast('姓名更新成功');  
+            } catch (error) {  
+                console.error('更新姓名失败:', error);  
+                showToast('更新姓名失败', false);  
+            } finally {  
+                showLoading(false);  
+            }  
+        }  
+        
+        // 更新用户所有帖子中的姓名  
+        function updatePostsWithNewName(newName) {  
+            if (!currentUser) return;  
+            
+            // 获取该用户的所有帖子  
+            database.ref('posts').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')  
+                .then((snapshot) => {  
+                    snapshot.forEach((childSnapshot) => {  
+                        // 更新每个帖子的作者姓名  
+                        childSnapshot.ref.update({ author_name: newName });  
+                    });  
+                });  
         }  
 
         // 更新工号  
@@ -600,32 +722,70 @@
             
             const newEmployeeId = document.getElementById('newEmployeeId').value.trim();  
             if (!newEmployeeId) {  
-                alert('请输入新的工号');  
+                showToast('请输入新的工号', false);  
                 return;  
             }  
             
-            // 更新当前用户工号  
-            currentUser.employee_id = newEmployeeId;  
-            isAdmin = ADMIN_EMPLOYEE_IDS.includes(newEmployeeId);  
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+            showLoading(true);  
             
-            // 更新UI  
-            document.getElementById('profileEmployeeId').textContent = newEmployeeId;  
-            document.getElementById('newEmployeeId').value = '';  
-            
-            // 更新管理员标识  
-            if (isAdmin) {  
-                document.getElementById('adminBadge').classList.remove('hidden');  
-            } else {  
-                document.getElementById('adminBadge').classList.add('hidden');  
+            try {  
+                const oldEmployeeId = currentUser.employee_id;  
+                
+                // 更新当前用户工号  
+                currentUser.employee_id = newEmployeeId;  
+                isAdmin = ADMIN_EMPLOYEE_IDS.includes(newEmployeeId);  
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));  
+                
+                // 更新UI  
+                document.getElementById('profileEmployeeId').textContent = newEmployeeId;  
+                document.getElementById('newEmployeeId').value = '';  
+                
+                // 更新管理员标识  
+                if (isAdmin) {  
+                    document.getElementById('adminBadge').classList.remove('hidden');  
+                } else {  
+                    document.getElementById('adminBadge').classList.add('hidden');  
+                }  
+                
+                // 更新该用户发布的所有帖子中的工号和管理员状态  
+                updatePostsWithNewEmployeeId(oldEmployeeId, newEmployeeId, isAdmin);  
+                
+                showToast('工号更新成功');  
+            } catch (error) {  
+                console.error('更新工号失败:', error);  
+                showToast('更新工号失败', false);  
+            } finally {  
+                showLoading(false);  
             }  
-            
-            alert('工号更新成功');  
+        }  
+        
+        // 更新用户所有帖子中的工号和管理员状态  
+        function updatePostsWithNewEmployeeId(oldEmployeeId, newEmployeeId, isAdmin) {  
+            // 获取该用户的所有帖子  
+            database.ref('posts').orderByChild('author_employee_id').equalTo(oldEmployeeId).once('value')  
+                .then((snapshot) => {  
+                    snapshot.forEach((childSnapshot) => {  
+                        // 更新每个帖子的作者工号和管理员状态  
+                        childSnapshot.ref.update({   
+                            author_employee_id: newEmployeeId,  
+                            is_admin: isAdmin  
+                        });  
+                    });  
+                });  
         }  
 
         // 将图片上传到ImgBB  
         async function uploadImageToImgBB(file) {  
-            const IMGBB_API_KEY = 'b770ca69f1c22b4cd384bdf5bd18d5e2'; // 替换为您的实际API密钥  
+            const IMGBB_API_KEY = ''; // 替换为您的实际API密钥  
+            
+            // 如果没有API密钥，使用DataURL（注意这只是临时解决方案，实际项目中应使用真实的图片服务）  
+            if (!IMGBB_API_KEY) {  
+                return new Promise((resolve) => {  
+                    const reader = new FileReader();  
+                    reader.onloadend = () => resolve(reader.result);  
+                    reader.readAsDataURL(file);  
+                });  
+            }  
             
             const formData = new FormData();  
             formData.append('image', file);  
@@ -650,6 +810,44 @@
                 return null;  
             }  
         }  
+
+        // 添加初始帖子（如果Firebase为空）  
+        function addInitialPostsIfNeeded() {  
+            database.ref('posts').once('value').then((snapshot) => {  
+                if (!snapshot.exists()) {  
+                    // 数据库为空，添加初始帖子  
+                    const initialPosts = {  
+                        "init1": {  
+                            id: "init1",  
+                            author_name: "系统管理员",  
+                            author_employee_id: "admin001",  
+                            author_avatar: "https://via.placeholder.com/100",  
+                            content: "欢迎使用青年π空间！这是一个技术问题示例帖子。",  
+                            section: "tech",  
+                            is_admin: true,  
+                            likes: 0,  
+                            created_at: new Date().toISOString()  
+                        },  
+                        "init2": {  
+                            id: "init2",  
+                            author_name: "系统管理员",  
+                            author_employee_id: "admin001",  
+                            author_avatar: "https://via.placeholder.com/100",  
+                            content: "在这里可以分享日常问题和交流。",  
+                            section: "daily",  
+                            is_admin: true,  
+                            likes: 0,  
+                            created_at: new Date().toISOString()  
+                        }  
+                    };  
+                    
+                    database.ref('posts').set(initialPosts);  
+                }  
+            });  
+        }  
+
+        // 页面加载时添加初始帖子  
+        addInitialPostsIfNeeded();  
     </script>  
 </body>  
 </html>  
