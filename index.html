@@ -19,17 +19,21 @@
             display: none !important;  
         }  
         
+        /* 增强移动端图片显示兼容性 */  
         @media (max-width: 768px) {  
             .post-image-container:not(.hidden) {  
-                display: block;  
-                width: 100%;  
+                display: block !important;  
+                width: 100% !important;  
+                text-align: center !important;  
+                margin-bottom: 1rem !important;  
             }  
             
             .post-image {  
-                max-width: 100%;  
-                height: auto;  
+                max-width: 100% !important;  
+                height: auto !important;  
                 max-height: 300px !important;  
-                object-fit: contain;  
+                object-fit: contain !important;  
+                display: inline-block !important;  
             }  
         }  
     </style>  
@@ -45,8 +49,10 @@
                         <img id="navUserAvatar" class="w-8 h-8 rounded-full object-cover" src="https://via.placeholder.com/32" alt="用户头像">  
                         <span id="navUserName">加载中...</span>  
                         <button id="editProfileBtn" class="px-3 py-1 bg-blue-500 rounded hover:bg-blue-600">编辑信息</button>  
-                        <!-- 管理员设置按钮，只对管理员可见 -->  
-                        <button id="adminPanelBtn" class="hidden px-3 py-1 bg-red-500 rounded hover:bg-red-600">管理员设置</button>  
+                        <!-- 用户管理按钮（仅系统管理员可见） -->  
+                        <button id="userManagementBtn" class="hidden px-3 py-1 bg-purple-500 rounded hover:bg-purple-600">用户管理</button>  
+                        <!-- 管理员设置按钮（所有管理员可见） -->  
+                        <button id="adminPanelBtn" class="hidden px-3 py-1 bg-red-500 rounded hover:bg-red-600">管理设置</button>  
                         <button id="logoutBtn" class="px-3 py-1 bg-gray-500 rounded hover:bg-gray-600">退出登录</button>  
                     </div>  
                 </div>  
@@ -162,6 +168,32 @@
                 </div>  
             </div>  
 
+            <!-- 用户管理面板 - 仅系统管理员可见 -->  
+            <div id="userManagementContainer" class="bg-white shadow-md rounded-lg p-6 max-w-4xl mx-auto my-10 hidden">  
+                <h2 class="text-xl font-semibold mb-4 text-center">用户管理</h2>  
+                <div class="space-y-4">  
+                    <div class="overflow-auto">  
+                        <table class="min-w-full bg-white">  
+                            <thead>  
+                                <tr>  
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">工号</th>  
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">姓名</th>  
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">注册时间</th>  
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">管理员</th>  
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">操作</th>  
+                                </tr>  
+                            </thead>  
+                            <tbody id="userTable">  
+                                <!-- 用户数据将在这里动态填充 -->  
+                            </tbody>  
+                        </table>  
+                    </div>  
+                    <div class="flex justify-center">  
+                        <button id="closeUserManagementBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">关闭</button>  
+                    </div>  
+                </div>  
+            </div>  
+
             <!-- 主要内容区 -->  
             <div id="mainContainer" class="hidden">  
                 <!-- 板块导航 -->  
@@ -215,7 +247,10 @@
                             <div>  
                                 <h3 id="profileName" class="text-xl font-semibold">加载中...</h3>  
                                 <p class="text-gray-600">工号: <span id="profileEmployeeId">加载中...</span></p>  
-                                <p id="adminBadge" class="hidden text-xs bg-red-500 text-white px-2 py-0.5 rounded inline-block mt-1">管理员</p>  
+                                <div class="flex space-x-2 mt-1">  
+                                    <p id="adminBadge" class="hidden text-xs bg-red-500 text-white px-2 py-0.5 rounded inline-block">管理员</p>  
+                                    <p id="systemAdminBadge" class="hidden text-xs bg-purple-500 text-white px-2 py-0.5 rounded inline-block">系统管理员</p>  
+                                </div>  
                             </div>  
                         </div>  
                     </div>  
@@ -256,14 +291,15 @@
                     <div class="flex items-center space-x-2">  
                         <h3 class="post-author font-semibold"></h3>  
                         <span class="post-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>  
+                        <span class="post-pinned-badge hidden text-xs bg-yellow-500 text-white px-1 rounded">置顶</span>  
                     </div>  
                     <p class="post-time text-gray-500 text-sm"></p>  
                 </div>  
             </div>  
             <p class="post-content mb-3"></p>  
-            <!-- 修改为原版的图片容器 -->  
-            <div class="post-image-container mb-3 hidden">  
-                <img class="post-image max-h-96 w-full object-contain rounded" alt="发布的图片">  
+            <!-- 修改为改进的图片容器 -->  
+            <div class="post-image-container mb-3 hidden text-center">  
+                <img class="post-image max-w-full max-h-96 inline-block object-contain rounded" alt="发布的图片">  
             </div>  
             <div class="flex items-center space-x-4 text-gray-500 mb-3">  
                 <button class="like-btn flex items-center space-x-1 hover:text-blue-500">  
@@ -278,6 +314,8 @@
                     </svg>  
                     <span>回复</span>  
                 </button>  
+                <button class="pin-btn hidden text-yellow-500 hover:text-yellow-700">置顶</button>  
+                <button class="unpin-btn hidden text-yellow-500 hover:text-yellow-700">取消置顶</button>  
                 <button class="delete-btn hidden text-red-500 hover:text-red-700">删除</button>  
             </div>  
             
@@ -339,6 +377,7 @@
         // 当前用户对象  
         let currentUser = null;  
         let isAdmin = false;  
+        let isSystemAdmin = false; // 新增系统管理员标识  
         
         // 是否已加载过帖子的标志，避免重复处理  
         let postsInitialized = false;  
@@ -434,6 +473,10 @@
             document.getElementById('adminPanelBtn').addEventListener('click', showAdminPanel);  
             document.getElementById('closeAdminPanelBtn').addEventListener('click', hideAdminPanel);  
             document.getElementById('addAdminBtn').addEventListener('click', addNewAdmin);  
+            
+            // 用户管理按钮  
+            document.getElementById('userManagementBtn').addEventListener('click', showUserManagement);  
+            document.getElementById('closeUserManagementBtn').addEventListener('click', hideUserManagement);  
 
             // 板块切换  
             document.querySelectorAll('.section-btn').forEach(btn => {  
@@ -470,7 +513,37 @@
                 document.getElementById('avatarInput').click()  
             );  
             document.getElementById('avatarInput').addEventListener('change', updateAvatar);  
+            
+            // 初始化系统管理员账号  
+            addInitialSystemAdmin();  
         });  
+        
+        // 初始化系统管理员账号  
+        function addInitialSystemAdmin() {  
+            database.ref('users/admin001').once('value').then((snapshot) => {  
+                if (!snapshot.exists()) {  
+                    console.log('创建系统管理员账号');  
+                    
+                    // 创建管理员账号 - 使用固定密码哈希而不是动态生成  
+                    // admin123 的哈希值  
+                    const adminUser = {  
+                        id: "admin001",  
+                        name: "系统管理员",  
+                        employee_id: "admin001",  
+                        password_hash: "QJEzWGpBYm1YQXg6N2NkY2UxYmQ4YzNkMzU3YWQwNjc5YTc4YjIxNGE0NDZhNDI5MmY4MDQwNzg0YTcwNTQzZjNhOTE2NzQyZDA3Yw==",  
+                        avatar_url: "https://via.placeholder.com/100",  
+                        is_admin: true,  
+                        is_system_admin: true, // 系统管理员标识  
+                        created_at: new Date().toISOString()  
+                    };  
+                    
+                    database.ref('users/admin001').set(adminUser);  
+                    
+                    // 确保管理员列表中有此账号  
+                    database.ref('admins/admin001').set(true);  
+                }  
+            });  
+        }  
         
         // 检查登录状态  
         function checkLoginStatus() {  
@@ -511,6 +584,7 @@
                 document.getElementById('mainContainer').classList.add('hidden');  
                 document.getElementById('adminPanelContainer').classList.add('hidden');  
                 document.getElementById('userInfoContainer').classList.add('hidden');  
+                document.getElementById('userManagementContainer').classList.add('hidden');  
                 document.getElementById('userNav').classList.add('hidden');  
             }  
         }  
@@ -527,7 +601,46 @@
             
             showLoading(true);  
             
-            // 检查工号是否存在  
+            // 系统管理员特殊处理  
+            if (employeeId === 'admin001' && password === 'admin123') {  
+                // 直接验证系统管理员  
+                database.ref(`users/admin001`).once('value').then((snapshot) => {  
+                    if (snapshot.exists()) {  
+                        currentUser = snapshot.val();  
+                        isAdmin = true;  
+                        isSystemAdmin = true; // 设置系统管理员标识  
+                        
+                        // 创建会话  
+                        const session = {  
+                            employee_id: employeeId,  
+                            expires: new Date().getTime() + (24 * 60 * 60 * 1000)  
+                        };  
+                        localStorage.setItem('userSession', JSON.stringify(session));  
+                        
+                        // 清空登录表单  
+                        document.getElementById('loginEmployeeId').value = '';  
+                        document.getElementById('loginPassword').value = '';  
+                        
+                        addInitialPostsIfNeeded();  
+                        setupRealTimeListeners();  
+                        
+                        showMainUI();  
+                        showToast('系统管理员登录成功');  
+                    } else {  
+                        // 如果系统管理员账号不存在，则初始化  
+                        addInitialSystemAdmin();  
+                        showToast('已初始化系统，请再次登录', false);  
+                    }  
+                    showLoading(false);  
+                }).catch(error => {  
+                    console.error('系统管理员登录出错:', error);  
+                    showToast('登录失败: ' + error.message, false);  
+                    showLoading(false);  
+                });  
+                return;  
+            }  
+            
+            // 普通用户登录  
             database.ref(`users/${employeeId}`).once('value').then((snapshot) => {  
                 if (snapshot.exists()) {  
                     const userData = snapshot.val();  
@@ -626,6 +739,8 @@
                     employee_id: employeeId,  
                     password_hash: passwordHash,  
                     avatar_url: avatarUrl,  
+                    is_admin: false,  
+                    is_system_admin: false,  
                     created_at: new Date().toISOString()  
                 };  
                 
@@ -658,6 +773,7 @@
             localStorage.removeItem('userSession');  
             currentUser = null;  
             isAdmin = false;  
+            isSystemAdmin = false;  
             
             // 重置标志  
             postsInitialized = false;  
@@ -671,6 +787,7 @@
             document.getElementById('mainContainer').classList.add('hidden');  
             document.getElementById('adminPanelContainer').classList.add('hidden');  
             document.getElementById('userInfoContainer').classList.add('hidden');  
+            document.getElementById('userManagementContainer').classList.add('hidden');  
             document.getElementById('userNav').classList.add('hidden');  
             
             showToast('已退出登录');  
@@ -783,8 +900,7 @@
                 if (!snapshot.exists()) {  
                     // 创建默认管理员列表  
                     const defaultAdmins = {  
-                        'admin001': true,   
-                        'admin002': true  
+                        'admin001': true  
                     };  
                     database.ref('admins').set(defaultAdmins);  
                 }  
@@ -831,10 +947,18 @@
                 const adminElement = template.content.cloneNode(true).querySelector('.admin-item');  
                 adminElement.querySelector('.admin-id').textContent = adminId;  
                 
-                // 添加移除管理员事件  
-                adminElement.querySelector('.remove-admin-btn').addEventListener('click', () => {  
-                    removeAdmin(adminId);  
-                });  
+                // 系统管理员不能移除  
+                if (adminId === 'admin001') {  
+                    adminElement.querySelector('.remove-admin-btn').textContent = '系统管理员';  
+                    adminElement.querySelector('.remove-admin-btn').disabled = true;  
+                    adminElement.querySelector('.remove-admin-btn').classList.add('text-gray-400');  
+                    adminElement.querySelector('.remove-admin-btn').classList.remove('text-red-500', 'hover:text-red-700');  
+                } else {  
+                    // 添加移除管理员事件  
+                    adminElement.querySelector('.remove-admin-btn').addEventListener('click', () => {  
+                        removeAdmin(adminId);  
+                    });  
+                }  
                 
                 adminList.appendChild(adminElement);  
             });  
@@ -844,6 +968,11 @@
         function addNewAdmin() {  
             if (!isAdmin) {  
                 showToast('只有管理员可以添加其他管理员', false);  
+                return;  
+            }  
+            
+            if (!isSystemAdmin) {  
+                showToast('只有系统管理员可以添加其他管理员', false);  
                 return;  
             }  
             
@@ -873,6 +1002,9 @@
                             document.getElementById('newAdminId').value = '';  
                             showToast(`已将工号 ${newAdminId} 设为管理员`);  
                             
+                            // 更新用户数据中的管理员标识  
+                            database.ref(`users/${newAdminId}`).update({ is_admin: true });  
+                            
                             // 更新该工号发布的所有内容的管理员状态  
                             updateUserContentAdminStatusByEmployeeId(newAdminId, true);  
                         })  
@@ -891,28 +1023,32 @@
                 return;  
             }  
             
-            // 检查是否是最后一个管理员  
-            database.ref('admins').once('value').then((snapshot) => {  
-                const adminCount = Object.keys(snapshot.val() || {}).length;  
-                
-                if (adminCount <= 1) {  
-                    showToast('无法移除最后一个管理员', false);  
-                    return;  
-                }  
-                
-                // 从管理员列表中移除  
-                database.ref(`admins/${adminId}`).remove()  
-                    .then(() => {  
-                        showToast(`已移除管理员 ${adminId}`);  
-                        
-                        // 更新该工号发布的所有内容的管理员状态  
-                        updateUserContentAdminStatusByEmployeeId(adminId, false);  
-                    })  
-                    .catch(error => {  
-                        console.error('移除管理员失败:', error);  
-                        showToast('移除管理员失败: ' + error.message, false);  
-                    });  
-            });  
+            if (!isSystemAdmin) {  
+                showToast('只有系统管理员可以移除其他管理员', false);  
+                return;  
+            }  
+            
+            // 系统管理员不能被移除  
+            if (adminId === 'admin001') {  
+                showToast('系统管理员不能被移除', false);  
+                return;  
+            }  
+            
+            // 从管理员列表中移除  
+            database.ref(`admins/${adminId}`).remove()  
+                .then(() => {  
+                    showToast(`已移除管理员 ${adminId}`);  
+                    
+                    // 更新用户数据中的管理员标识  
+                    database.ref(`users/${adminId}`).update({ is_admin: false });  
+                    
+                    // 更新该工号发布的所有内容的管理员状态  
+                    updateUserContentAdminStatusByEmployeeId(adminId, false);  
+                })  
+                .catch(error => {  
+                    console.error('移除管理员失败:', error);  
+                    showToast('移除管理员失败: ' + error.message, false);  
+                });  
         }  
         
         // 显示管理员面板  
@@ -935,12 +1071,225 @@
             document.getElementById('mainContainer').classList.remove('hidden');  
         }  
         
+        // 显示用户管理面板  
+        function showUserManagement() {  
+            if (!isSystemAdmin) {  
+                showToast('只有系统管理员可以访问用户管理', false);  
+                return;  
+            }  
+            
+            document.getElementById('mainContainer').classList.add('hidden');  
+            document.getElementById('userManagementContainer').classList.remove('hidden');  
+            
+            // 加载所有用户数据  
+            loadAllUsers();  
+        }  
+        
+        // 隐藏用户管理面板  
+        function hideUserManagement() {  
+            document.getElementById('userManagementContainer').classList.add('hidden');  
+            document.getElementById('mainContainer').classList.remove('hidden');  
+        }  
+        
+        // 加载所有用户数据  
+        function loadAllUsers() {  
+            showLoading(true);  
+            
+            database.ref('users').once('value').then((snapshot) => {  
+                const userTable = document.getElementById('userTable');  
+                userTable.innerHTML = '';  
+                
+                if (!snapshot.exists()) {  
+                    userTable.innerHTML = '<tr><td colspan="5" class="py-2 px-4 text-center">暂无用户数据</td></tr>';  
+                    showLoading(false);  
+                    return;  
+                }  
+                
+                const users = [];  
+                snapshot.forEach((childSnapshot) => {  
+                    users.push(childSnapshot.val());  
+                });  
+                
+                // 按注册时间排序  
+                users.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));  
+                
+                // 创建用户表格行  
+                users.forEach(user => {  
+                    const row = document.createElement('tr');  
+                    
+                    // 工号  
+                    const idCell = document.createElement('td');  
+                    idCell.className = 'py-2 px-4 border-b border-gray-200';  
+                    idCell.textContent = user.employee_id;  
+                    row.appendChild(idCell);  
+                    
+                    // 姓名  
+                    const nameCell = document.createElement('td');  
+                    nameCell.className = 'py-2 px-4 border-b border-gray-200';  
+                    nameCell.textContent = user.name;  
+                    row.appendChild(nameCell);  
+                    
+                    // 注册时间  
+                    const timeCell = document.createElement('td');  
+                    timeCell.className = 'py-2 px-4 border-b border-gray-200';  
+                    timeCell.textContent = new Date(user.created_at).toLocaleString();  
+                    row.appendChild(timeCell);  
+                    
+                    // 管理员状态  
+                    const adminCell = document.createElement('td');  
+                    adminCell.className = 'py-2 px-4 border-b border-gray-200';  
+                    if (user.is_system_admin) {  
+                        adminCell.innerHTML = '<span class="bg-purple-500 text-white px-2 py-0.5 rounded">系统管理员</span>';  
+                    } else if (user.is_admin) {  
+                        adminCell.innerHTML = '<span class="bg-red-500 text-white px-2 py-0.5 rounded">管理员</span>';  
+                    } else {  
+                        adminCell.textContent = '普通用户';  
+                    }  
+                    row.appendChild(adminCell);  
+                    
+                    // 操作按钮  
+                    const actionCell = document.createElement('td');  
+                    actionCell.className = 'py-2 px-4 border-b border-gray-200';  
+                    
+                    // 不允许操作系统管理员  
+                    if (!user.is_system_admin) {  
+                        // 添加/移除管理员按钮  
+                        const adminBtn = document.createElement('button');  
+                        adminBtn.className = user.is_admin   
+                            ? 'mr-2 px-2 py-1 bg-yellow-500 text-white rounded text-xs'  
+                            : 'mr-2 px-2 py-1 bg-green-500 text-white rounded text-xs';  
+                        adminBtn.textContent = user.is_admin ? '移除管理员' : '设为管理员';  
+                        adminBtn.addEventListener('click', () => {  
+                            if (user.is_admin) {  
+                                removeAdmin(user.employee_id);  
+                                setTimeout(() => loadAllUsers(), 500);  
+                            } else {  
+                                addAdminFromUserManagement(user.employee_id);  
+                                setTimeout(() => loadAllUsers(), 500);  
+                            }  
+                        });  
+                        actionCell.appendChild(adminBtn);  
+                        
+                        // 删除用户按钮  
+                        const deleteBtn = document.createElement('button');  
+                        deleteBtn.className = 'px-2 py-1 bg-red-500 text-white rounded text-xs';  
+                        deleteBtn.textContent = '删除';  
+                        deleteBtn.addEventListener('click', () => {  
+                            if (confirm(`确定要删除用户 ${user.name} (${user.employee_id}) 吗？`)) {  
+                                deleteUser(user.employee_id);  
+                            }  
+                        });  
+                        actionCell.appendChild(deleteBtn);  
+                    } else {  
+                        actionCell.textContent = '系统管理员不可修改';  
+                    }  
+                    
+                    row.appendChild(actionCell);  
+                    
+                    userTable.appendChild(row);  
+                });  
+                
+                showLoading(false);  
+            }).catch(error => {  
+                console.error('加载用户数据失败:', error);  
+                showToast('加载用户数据失败', false);  
+                showLoading(false);  
+            });  
+        }  
+        
+        // 从用户管理界面添加管理员  
+        function addAdminFromUserManagement(employeeId) {  
+            if (!isSystemAdmin) {  
+                showToast('只有系统管理员可以添加其他管理员', false);  
+                return;  
+            }  
+            
+            // 添加到管理员列表  
+            database.ref(`admins/${employeeId}`).set(true)  
+                .then(() => {  
+                    showToast(`已将工号 ${employeeId} 设为管理员`);  
+                    
+                    // 更新用户数据中的管理员标识  
+                    database.ref(`users/${employeeId}`).update({ is_admin: true });  
+                    
+                    // 更新该工号发布的所有内容的管理员状态  
+                    updateUserContentAdminStatusByEmployeeId(employeeId, true);  
+                    
+                    // 重新加载用户列表  
+                    loadAllUsers();  
+                })  
+                .catch(error => {  
+                    console.error('添加管理员失败:', error);  
+                    showToast('添加管理员失败: ' + error.message, false);  
+                });  
+        }  
+        
+                // 删除用户  
+        function deleteUser(employeeId) {  
+            if (!isSystemAdmin) {  
+                showToast('只有系统管理员可以删除用户', false);  
+                return;  
+            }  
+            
+            showLoading(true);  
+            
+            // 首先从管理员列表中移除  
+            database.ref(`admins/${employeeId}`).remove()  
+                .then(() => {  
+                    // 删除用户所有帖子  
+                    return database.ref('posts').orderByChild('author_employee_id').equalTo(employeeId).once('value');  
+                })  
+                .then((snapshot) => {  
+                    const promises = [];  
+                    snapshot.forEach((childSnapshot) => {  
+                        promises.push(database.ref(`posts/${childSnapshot.key}`).remove());  
+                    });  
+                    return Promise.all(promises);  
+                })  
+                .then(() => {  
+                    // 删除用户所有回复  
+                    return database.ref('replies').orderByChild('author_employee_id').equalTo(employeeId).once('value');  
+                })  
+                .then((snapshot) => {  
+                    const promises = [];  
+                    snapshot.forEach((childSnapshot) => {  
+                        promises.push(database.ref(`replies/${childSnapshot.key}`).remove());  
+                    });  
+                    return Promise.all(promises);  
+                })  
+                .then(() => {  
+                    // 最后删除用户账号  
+                    return database.ref(`users/${employeeId}`).remove();  
+                })  
+                .then(() => {  
+                    showToast(`用户 ${employeeId} 删除成功`);  
+                    loadAllUsers();  
+                })  
+                .catch(error => {  
+                    console.error('删除用户失败:', error);  
+                    showToast('删除用户失败: ' + error.message, false);  
+                })  
+                .finally(() => {  
+                    showLoading(false);  
+                });  
+        }  
+        
         // 检查并更新当前用户的管理员状态  
         function checkAndUpdateAdminStatus() {  
             if (!currentUser) return;  
             
+            // 首先检查是否是系统管理员  
+            if (currentUser.employee_id === 'admin001' || currentUser.is_system_admin) {  
+                isAdmin = true;  
+                isSystemAdmin = true;  
+                updateAdminUI();  
+                return;  
+            }  
+            
+            // 检查普通管理员状态  
             database.ref(`admins/${currentUser.employee_id}`).once('value').then((snapshot) => {  
                 isAdmin = snapshot.exists();  
+                isSystemAdmin = false;  
                 
                 // 更新UI  
                 updateAdminUI();  
@@ -962,6 +1311,10 @@
             
             // 个人资料中的管理员标识  
             document.getElementById('adminBadge').classList.toggle('hidden', !isAdmin);  
+            
+            // 系统管理员专属标识和用户管理按钮  
+            document.getElementById('systemAdminBadge').classList.toggle('hidden', !isSystemAdmin);  
+            document.getElementById('userManagementBtn').classList.toggle('hidden', !isSystemAdmin);  
         }  
         
         // 更新用户发布内容中的管理员状态  
@@ -996,6 +1349,7 @@
             document.getElementById('registerContainer').classList.add('hidden');  
             document.getElementById('userInfoContainer').classList.add('hidden');  
             document.getElementById('adminPanelContainer').classList.add('hidden');  
+            document.getElementById('userManagementContainer').classList.add('hidden');  
             document.getElementById('mainContainer').classList.remove('hidden');  
             document.getElementById('userNav').classList.remove('hidden');  
             
@@ -1085,44 +1439,32 @@
             });  
         }  
 
-        // 简化版图片上传函数  
+        // 增强版图片上传函数  
         async function uploadImageToImgBB(file) {  
-            const IMGBB_API_KEY = 'b770ca69f1c22b4cd384bdf5bd18d5e2'; // 替换为您的实际API密钥  
-            
             try {  
-                // 如果有API密钥，尝试上传到ImgBB  
-                if (IMGBB_API_KEY) {  
-                    const formData = new FormData();  
-                    formData.append('image', file);  
-                    formData.append('key', IMGBB_API_KEY);  
-                    
-                    const response = await fetch('https://api.imgbb.com/1/upload', {  
-                        method: 'POST',  
-                        body: formData  
-                    });  
-                    
-                    const data = await response.json();  
-                    
-                    if (data.success) {  
-                        return data.data.url;  
-                    }  
-                }  
-                
-                // 回退到数据URL  
+                // 直接使用Base64编码方式存储图片，提高兼容性  
                 return new Promise((resolve) => {  
                     const reader = new FileReader();  
-                    reader.onloadend = () => resolve(reader.result);  
+                    reader.onloadend = () => {  
+                        // 确保生成有效的数据URL  
+                        const result = reader.result;  
+                        if (typeof result === 'string' && result.startsWith('data:')) {  
+                            console.log("成功生成图片数据URL");  
+                            resolve(result);  
+                        } else {  
+                            console.error('图片编码异常');  
+                            resolve(null);  
+                        }  
+                    };  
+                    reader.onerror = () => {  
+                        console.error('读取文件失败');  
+                        resolve(null);  
+                    };  
                     reader.readAsDataURL(file);  
                 });  
             } catch (error) {  
-                console.error('图片上传错误:', error);  
-                
-                // 错误情况下回退到数据URL  
-                return new Promise((resolve) => {  
-                    const reader = new FileReader();  
-                    reader.onloadend = () => resolve(reader.result);  
-                    reader.readAsDataURL(file);  
-                });  
+                console.error('图片处理错误:', error);  
+                return null;  
             }  
         }  
 
@@ -1165,6 +1507,7 @@
                     image_url: imageUrl,  
                     section: section,  
                     is_admin: isAdmin,  
+                    is_pinned: false, // 默认不置顶  
                     likes: 0,  
                     created_at: new Date().toISOString()  
                 };  
@@ -1198,8 +1541,15 @@
                     posts.push(childSnapshot.val());  
                 });  
                 
-                // 按创建时间排序，最新的在前面  
-                posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));  
+                // 修改排序逻辑：置顶帖子在前，然后按时间排序  
+                posts.sort((a, b) => {  
+                    // 首先按照置顶状态排序  
+                    if (a.is_pinned && !b.is_pinned) return -1;  
+                    if (!a.is_pinned && b.is_pinned) return 1;  
+                    
+                    // 然后按照时间排序，最新的在前面  
+                    return new Date(b.created_at) - new Date(a.created_at);  
+                });  
                 
                 // 渲染到各个板块  
                 posts.forEach(post => {  
@@ -1231,7 +1581,7 @@
             }  
         }  
 
-        // 简化的创建帖子DOM元素函数  
+        // 创建帖子DOM元素  
         function createPostElement(post) {  
             const template = document.getElementById('postTemplate');  
             const postElement = template.content.cloneNode(true).querySelector('.post');  
@@ -1252,6 +1602,11 @@
                 postElement.querySelector('.post-admin-badge').classList.remove('hidden');  
             }  
             
+            // 显示置顶标识  
+            if (post.is_pinned) {  
+                postElement.querySelector('.post-pinned-badge').classList.remove('hidden');  
+            }  
+            
             // 设置发布时间  
             const date = new Date(post.created_at);  
             postElement.querySelector('.post-time').textContent = date.toLocaleString();  
@@ -1259,12 +1614,27 @@
             // 设置内容  
             postElement.querySelector('.post-content').textContent = post.content;  
             
-            // 简化的图片显示逻辑  
+            // 增强的图片显示逻辑  
             if (post.image_url) {  
                 const imageContainer = postElement.querySelector('.post-image-container');  
                 const imageElem = postElement.querySelector('.post-image');  
+                
+                // 强制移除hidden类并确保显示  
                 imageContainer.classList.remove('hidden');  
+                
+                // 设置图片源  
                 imageElem.src = post.image_url;  
+                
+                // 添加延迟加载和错误处理  
+                imageElem.addEventListener('error', function() {  
+                    console.error('图片加载失败，尝试重新加载', post.image_url);  
+                    setTimeout(() => {  
+                        // 尝试添加时间戳刷新缓存  
+                        imageElem.src = post.image_url.includes('?')   
+                            ? post.image_url + '&t=' + new Date().getTime()   
+                            : post.image_url + '?t=' + new Date().getTime();  
+                    }, 500);  
+                });  
             }  
             
             // 设置点赞数  
@@ -1275,10 +1645,19 @@
                 postElement.querySelector('.delete-btn').classList.remove('hidden');  
             }  
             
+            // 如果是管理员，显示置顶/取消置顶按钮  
+            if (isAdmin) {  
+                if (post.is_pinned) {  
+                    postElement.querySelector('.unpin-btn').classList.remove('hidden');  
+                } else {  
+                    postElement.querySelector('.pin-btn').classList.remove('hidden');  
+                }  
+            }  
+            
             return postElement;  
         }  
 
-        // 附加帖子事件（点赞、删除、回复）  
+        // 附加帖子事件（点赞、删除、回复、置顶）  
         function attachPostEvents() {  
             // 点赞事件  
             document.querySelectorAll('.like-btn').forEach(btn => {  
@@ -1315,12 +1694,52 @@
                                         childSnapshot.ref.remove();  
                                     });  
                                 });  
-                            })
-                             .catch(error => {  
+                            })  
+                            .catch(error => {  
                                 console.error('删除失败:', error);  
                                 showToast('删除失败', false);  
                             });  
                     }  
+                });  
+            });  
+            
+            // 置顶事件  
+            document.querySelectorAll('.pin-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!isAdmin) return;  
+                    
+                    const postElement = event.currentTarget.closest('.post');  
+                    const postId = postElement.dataset.id;  
+                    
+                    // 更新Firebase中的置顶状态  
+                    database.ref(`posts/${postId}/is_pinned`).set(true)  
+                        .then(() => {  
+                            showToast('帖子已置顶');  
+                        })  
+                        .catch(error => {  
+                            console.error('置顶失败:', error);  
+                            showToast('置顶失败', false);  
+                        });  
+                });  
+            });  
+            
+            // 取消置顶事件  
+            document.querySelectorAll('.unpin-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!isAdmin) return;  
+                    
+                    const postElement = event.currentTarget.closest('.post');  
+                    const postId = postElement.dataset.id;  
+                    
+                    // 更新Firebase中的置顶状态  
+                    database.ref(`posts/${postId}/is_pinned`).set(false)  
+                        .then(() => {  
+                            showToast('已取消置顶');  
+                        })  
+                        .catch(error => {  
+                            console.error('取消置顶失败:', error);  
+                            showToast('取消置顶失败', false);  
+                        });  
                 });  
             });  
             
@@ -1631,6 +2050,7 @@
                             content: "欢迎使用青年π空间！这是一个技术问题示例帖子。",  
                             section: "tech",  
                             is_admin: true,  
+                            is_pinned: false,  
                             likes: 0,  
                             created_at: new Date().toISOString()  
                         },  
@@ -1642,28 +2062,17 @@
                             content: "在这里可以分享日常问题和交流。",  
                             section: "daily",  
                             is_admin: true,  
+                            is_pinned: false,  
                             likes: 0,  
                             created_at: new Date().toISOString()  
                         }  
                     };  
                     
                     database.ref('posts').set(initialPosts);  
-                    
-                    // 初始化默认管理员账户数据  
-                    const adminUser = {  
-                        id: generateId(),  
-                        name: "系统管理员",  
-                        employee_id: "admin001",  
-                        password_hash: hashPassword("admin123"), // 默认密码  
-                        avatar_url: "https://via.placeholder.com/100",  
-                        is_admin: true,  
-                        created_at: new Date().toISOString()  
-                    };  
-                    
-                    database.ref('users/admin001').set(adminUser);  
                 }  
             });  
         }  
     </script>  
 </body>  
 </html>  
+                            
