@@ -30,7 +30,59 @@
                 max-height: 300px !important;  
                 object-fit: contain !important;  
                 display: inline-block !important;  
+                cursor: pointer;  
             }  
+        }  
+        
+        /* 图片放大模态框样式 */  
+        .image-modal {  
+            display: none;  
+            position: fixed;  
+            top: 0;  
+            left: 0;  
+            width: 100%;  
+            height: 100%;  
+            background-color: rgba(0, 0, 0, 0.9);  
+            z-index: 1000;  
+            overflow: auto;  
+            justify-content: center;  
+            align-items: center;  
+        }  
+        
+        .modal-image {  
+            max-width: 90%;  
+            max-height: 90%;  
+            object-fit: contain;  
+        }  
+        
+        .modal-close {  
+            position: absolute;  
+            top: 15px;  
+            right: 15px;  
+            color: white;  
+            font-size: 30px;  
+            font-weight: bold;  
+            cursor: pointer;  
+        }  
+        
+        /* 图片加载指示器样式 */  
+        .image-loader {  
+            width: 100%;  
+            height: 150px;  
+            display: flex;  
+            align-items: center;  
+            justify-content: center;  
+            background-color: #f3f4f6;  
+        }  
+        
+        /* 图片放大指示样式 */  
+        .post-image {  
+            cursor: pointer;  
+            transition: transform 0.2s;  
+        }  
+        
+        .post-image:hover {  
+            transform: scale(1.03);  
         }  
     </style>  
 </head>  
@@ -277,6 +329,12 @@
             <p>加载中，请稍候...</p>  
         </div>  
     </div>  
+    
+    <!-- 图片放大模态框 -->  
+    <div id="imageModal" class="image-modal">  
+        <span class="modal-close">&times;</span>  
+        <img class="modal-image" id="modalImage" src="" alt="放大图片">  
+    </div>  
 
     <!-- 模板 -->  
     <template id="postTemplate">  
@@ -295,7 +353,12 @@
             <p class="post-content mb-3"></p>  
             <!-- 修改为改进的图片容器 -->  
             <div class="post-image-container mb-3 hidden text-center">  
-                <img class="post-image max-w-full max-h-96 inline-block object-contain rounded" alt="发布的图片">  
+                <!-- 添加图片加载指示器 -->  
+                <div class="image-loader">  
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>  
+                </div>  
+                <img class="post-image max-w-full max-h-96 inline-block object-contain rounded" alt="发布的图片" loading="lazy">  
+                <div class="text-xs text-gray-500 mt-1">点击图片可放大查看</div>  
             </div>  
             <div class="flex items-center space-x-4 text-gray-500 mb-3">  
                 <button class="like-btn flex items-center space-x-1 hover:text-blue-500">  
@@ -531,9 +594,59 @@
             );  
             document.getElementById('avatarInput').addEventListener('change', updateAvatar);  
             
+            // 初始化图片模态框事件  
+            initImageModal();  
+            
             // 初始化系统管理员账号  
             addInitialSystemAdmin();  
         });  
+        
+        // 初始化图片模态框  
+        function initImageModal() {  
+            const modal = document.getElementById('imageModal');  
+            const modalImage = document.getElementById('modalImage');  
+            const closeBtn = document.querySelector('.modal-close');  
+            
+            // 关闭模态框事件  
+            closeBtn.addEventListener('click', () => {  
+                modal.style.display = 'none';  
+            });  
+            
+            // 点击模态框背景也关闭  
+            modal.addEventListener('click', (event) => {  
+                if (event.target === modal) {  
+                    modal.style.display = 'none';  
+                }  
+            });  
+            
+            // 按ESC键关闭模态框  
+            document.addEventListener('keydown', (event) => {  
+                if (event.key === 'Escape' && modal.style.display === 'flex') {  
+                    modal.style.display = 'none';  
+                }  
+            });  
+        }  
+        
+        // 显示图片模态框  
+        function showImageModal(imgSrc) {  
+            const modal = document.getElementById('imageModal');  
+            const modalImage = document.getElementById('modalImage');  
+            
+            modalImage.src = imgSrc;  
+            // 使用flex来让内容居中  
+            modal.style.display = 'flex';  
+            
+            // 图片加载完成后显示  
+            modalImage.onload = function() {  
+                if (this.width < 800) {  
+                    // 如果图片小于800px，显示原始大小  
+                    this.style.width = 'auto';  
+                } else {  
+                    // 否则限制最大宽度为90%  
+                    this.style.width = '90%';  
+                }  
+            };  
+        }  
         
         // 初始化系统管理员账号  
         function addInitialSystemAdmin() {  
@@ -784,6 +897,675 @@
             }  
         }  
         
+        // 图片压缩功能 - 增强移动端兼容性  
+        function compressImage(file) {  
+            return new Promise((resolve) => {  
+                const reader = new FileReader();  
+                reader.onload = function(event) {  
+                    const img = new Image();  
+                    img.onload = function() {  
+                        // 创建一个canvas元素  
+                        const canvas = document.createElement('canvas');  
+                        
+                        // 计算新尺寸 (最大600px，降低为更好的移动端兼容性)  
+                        let width = img.width;  
+                        let height = img.height;  
+                        const maxSize = 600;  
+                        
+                        if (width > height && width > maxSize) {  
+                            height = Math.round(height * maxSize / width);  
+                            width = maxSize;  
+                        } else if (height > maxSize) {  
+                            width = Math.round(width * maxSize / height);  
+                            height = maxSize;  
+                        }  
+                        
+                        // 设置canvas大小  
+                        canvas.width = width;  
+                        canvas.height = height;  
+                        
+                        // 绘制压缩后的图片  
+                        const ctx = canvas.getContext('2d');  
+                        ctx.fillStyle = '#FFFFFF'; // 设置白色背景  
+                        ctx.fillRect(0, 0, width, height);  
+                        ctx.drawImage(img, 0, 0, width, height);  
+                        
+                        // 转换为Blob，降低质量到0.6以减小文件大小  
+                        canvas.toBlob(function(blob) {  
+                            resolve(new File([blob], file.name || 'image.jpg', {  
+                                type: 'image/jpeg',  
+                                lastModified: Date.now()  
+                            }));  
+                        }, 'image/jpeg', 0.6);  
+                    };  
+                    img.src = event.target.result;  
+                };  
+                reader.readAsDataURL(file);  
+            });  
+        }  
+
+        // 优化的Base64转换 - 专门针对移动网络优化  
+        async function uploadImageToBase64(file) {  
+            try {  
+                return new Promise((resolve) => {  
+                    const reader = new FileReader();  
+                    reader.onloadend = () => {  
+                        // 确保生成有效的数据URL  
+                        const result = reader.result;  
+                        if (typeof result === 'string' && result.startsWith('data:')) {  
+                            console.log("成功生成图片数据URL");  
+                            
+                            // 可选：进一步检查和优化数据URL  
+                            try {  
+                                // 检查数据URL的有效性  
+                                const img = new Image();  
+                                img.src = result;  
+                                
+                                // 输出图片大小以便调试  
+                                const sizeInKB = Math.round(result.length / 1024);  
+                                console.log(`图片大小: ${sizeInKB}KB`);  
+                                
+                                resolve(result);  
+                            } catch (err) {  
+                                console.error('数据URL验证失败:', err);  
+                                resolve(null);  
+                            }  
+                        } else {  
+                            console.error('图片编码异常');  
+                            resolve(null);  
+                        }  
+                    };  
+                    reader.onerror = () => {  
+                        console.error('读取文件失败');  
+                        resolve(null);  
+                    };  
+                    reader.readAsDataURL(file);  
+                });  
+            } catch (error) {  
+                console.error('图片处理错误:', error);  
+                return null;  
+            }  
+        }  
+
+        // 创建帖子 - 针对移动网络优化  
+        async function createPost(section) {  
+            if (!currentUser) {  
+                showToast('请先登录', false);  
+                return;  
+            }  
+            
+            const contentElem = document.getElementById(`${section}PostContent`);  
+            const imageElem = document.getElementById(`${section}PostImage`);  
+            const content = contentElem.value.trim();  
+            const imageFile = imageElem.files[0];  
+            
+            if (!content) {  
+                showToast('请输入内容', false);  
+                return;  
+            }  
+            
+            showLoading(true);  
+            
+            try {  
+                let imageUrl = null;  
+                
+                // 如果有图片，更强力压缩处理并上传  
+                if (imageFile) {  
+                    const compressedFile = await compressImage(imageFile);  
+                    imageUrl = await uploadImageToBase64(compressedFile);  
+                    
+                    // 记录图片大小  
+                    if (imageUrl) {  
+                        const sizeInKB = Math.round(imageUrl.length / 1024);  
+                        console.log(`上传图片大小: ${sizeInKB}KB`);  
+                        
+                        // 如果图片太大，再次压缩  
+                        if (sizeInKB > 500) {  
+                            showToast('图片较大，正在优化...', true);  
+                            // 创建一个图片元素来再次压缩  
+                            const img = new Image();  
+                            img.onload = function() {  
+                                const canvas = document.createElement('canvas');  
+                                
+                                // 降低尺寸到最大500px  
+                                let width = img.width;  
+                                let height = img.height;  
+                                const maxSize = 500;  
+                                
+                                if (width > height && width > maxSize) {  
+                                    height = Math.round(height * maxSize / width);  
+                                    width = maxSize;  
+                                } else if (height > maxSize) {  
+                                    width = Math.round(width * maxSize / height);  
+                                    height = maxSize;  
+                                }  
+                                
+                                canvas.width = width;  
+                                canvas.height = height;  
+                                const ctx = canvas.getContext('2d');  
+                                ctx.fillStyle = '#FFFFFF';  
+                                ctx.fillRect(0, 0, width, height);  
+                                ctx.drawImage(img, 0, 0, width, height);  
+                                
+                                // 使用更低的质量  
+                                imageUrl = canvas.toDataURL('image/jpeg', 0.5);  
+                                console.log(`优化后图片大小: ${Math.round(imageUrl.length / 1024)}KB`);  
+                                
+                                // 确保异步完成发布过程  
+                                finishCreatePost(section, content, imageUrl, contentElem, imageElem);  
+                            };  
+                            img.src = imageUrl;  
+                            return; // 中断执行，让onload处理剩余逻辑  
+                        }  
+                    }  
+                }  
+                
+                // 如果没有图片或图片不需要二次优化，直接完成发布  
+                await finishCreatePost(section, content, imageUrl, contentElem, imageElem);  
+                
+            } catch (error) {  
+                console.error('发布失败:', error);  
+                showToast('发布失败: ' + error.message, false);  
+                showLoading(false);  
+            }  
+        }  
+        
+        // 完成创建帖子流程  
+        async function finishCreatePost(section, content, imageUrl, contentElem, imageElem) {  
+            try {  
+                // 创建帖子对象  
+                const postId = generateId();  
+                const newPost = {  
+                    id: postId,  
+                    author_name: currentUser.name,  
+                    author_employee_id: currentUser.employee_id,  
+                    author_avatar: currentUser.avatar_url,  
+                    content: content,  
+                    image_url: imageUrl,  
+                    section: section,  
+                    is_admin: isAdmin,  
+                    is_pinned: false, // 默认不置顶  
+                    likes: 0,  
+                    created_at: new Date().toISOString()  
+                };  
+                
+                // 保存到Firebase  
+                await window.dbSet(window.dbRef(window.database, 'posts/' + postId), newPost);  
+                
+                contentElem.value = '';  
+                imageElem.value = '';  
+                showToast('发布成功');  
+            } catch (error) {  
+                console.error('完成发布失败:', error);  
+                showToast('发布失败: ' + error.message, false);  
+            } finally {  
+                showLoading(false);  
+            }  
+        }  
+
+        // 创建帖子DOM元素 - 添加图片点击放大功能  
+        function createPostElement(post) {  
+            const template = document.getElementById('postTemplate');  
+            const postElement = template.content.cloneNode(true).querySelector('.post');  
+            
+            // 设置帖子ID  
+            postElement.dataset.id = post.id;  
+            
+            // 设置作者信息  
+            const avatarElem = postElement.querySelector('.post-avatar');  
+            if (post.author_avatar) {  
+                avatarElem.src = post.author_avatar;  
+            }  
+            
+            postElement.querySelector('.post-author').textContent = post.author_name;  
+            
+            // 显示管理员标识  
+            if (post.is_admin) {  
+                postElement.querySelector('.post-admin-badge').classList.remove('hidden');  
+            }  
+            
+            // 显示置顶标识  
+            if (post.is_pinned) {  
+                postElement.querySelector('.post-pinned-badge').classList.remove('hidden');  
+            }  
+            
+            // 设置发布时间  
+            const date = new Date(post.created_at);  
+            postElement.querySelector('.post-time').textContent = date.toLocaleString();  
+            
+            // 设置内容  
+            postElement.querySelector('.post-content').textContent = post.content;  
+            
+            // 增强的图片显示逻辑  
+            if (post.image_url) {  
+                const imageContainer = postElement.querySelector('.post-image-container');  
+                const imageLoader = postElement.querySelector('.image-loader');  
+                const imageElem = postElement.querySelector('.post-image');  
+                
+                // 强制移除hidden类并确保显示  
+                imageContainer.classList.remove('hidden');  
+                
+                // 图片加载完成后隐藏加载器  
+                imageElem.addEventListener('load', function() {  
+                    imageLoader.style.display = 'none';  
+                    // 图片加载后才显示图片  
+                    this.style.display = 'inline-block';  
+                    
+                    // 添加点击放大事件  
+                    this.addEventListener('click', () => {  
+                        showImageModal(post.image_url);  
+                    });  
+                });  
+                
+                // 添加错误处理  
+                imageElem.addEventListener('error', function() {  
+                    console.error('图片加载失败，尝试重新加载', post.image_url);  
+                    // 显示错误提示  
+                    imageLoader.innerHTML = '<p class="text-red-500">图片加载失败</p>';  
+                    
+                    // 针对移动网络问题，尝试不同的加载策略  
+                    setTimeout(() => {  
+                        // 生成临时图片对象  
+                        const tempImg = new Image();  
+                        tempImg.onload = () => {  
+                            // 成功加载，更新显示  
+                            imageElem.src = tempImg.src;  
+                            imageLoader.style.display = 'none';  
+                            imageElem.style.display = 'inline-block';  
+                        };  
+                        tempImg.onerror = () => {  
+                            // 仍然失败，尝试显示图片加载失败提示  
+                            imageLoader.innerHTML = '<p class="text-red-500">图片加载失败，点击<button class="text-blue-500 underline reload-image-btn">重试</button></p>';  
+                            const reloadBtn = imageLoader.querySelector('.reload-image-btn');  
+                            reloadBtn.addEventListener('click', () => {  
+                                // 添加时间戳防止缓存  
+                                imageElem.src = post.image_url + '?t=' + new Date().getTime();  
+                                imageLoader.innerHTML = '<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>';  
+                            });  
+                        };  
+                         // 添加时间戳尝试避开缓存  
+                        tempImg.src = post.image_url + '?t=' + new Date().getTime();  
+                    }, 500);  
+                });  
+                
+                // 设置图片源  
+                imageElem.src = post.image_url;  
+                // 初始时隐藏图片，等加载完成后显示  
+                imageElem.style.display = 'none';  
+            }  
+            
+            // 设置点赞数  
+            postElement.querySelector('.like-count').textContent = post.likes || 0;  
+            
+            // 如果是当前用户的帖子或管理员，显示删除按钮  
+            if (currentUser && (post.author_employee_id === currentUser.employee_id || isAdmin)) {  
+                postElement.querySelector('.delete-btn').classList.remove('hidden');  
+            }  
+            
+            // 如果是管理员，显示置顶/取消置顶按钮  
+            if (isAdmin) {  
+                if (post.is_pinned) {  
+                    postElement.querySelector('.unpin-btn').classList.remove('hidden');  
+                } else {  
+                    postElement.querySelector('.pin-btn').classList.remove('hidden');  
+                }  
+            }  
+            
+            return postElement;  
+        }  
+
+        // 渲染帖子  
+        function renderPosts(snapshot) {  
+            showLoading(true);  
+            
+            try {  
+                // 清空现有帖子  
+                document.getElementById('techPosts').innerHTML = '';  
+                document.getElementById('dailyPosts').innerHTML = '';  
+                document.getElementById('userPosts').innerHTML = '';  
+                
+                const posts = [];  
+                snapshot.forEach((childSnapshot) => {  
+                    posts.push(childSnapshot.val());  
+                });  
+                
+                // 修改排序逻辑：置顶帖子在前，然后按时间排序  
+                posts.sort((a, b) => {  
+                    // 首先按照置顶状态排序  
+                    if (a.is_pinned && !b.is_pinned) return -1;  
+                    if (!a.is_pinned && b.is_pinned) return 1;  
+                    
+                    // 然后按照时间排序，最新的在前面  
+                    return new Date(b.created_at) - new Date(a.created_at);  
+                });  
+                
+                // 渲染到各个板块  
+                posts.forEach(post => {  
+                    const postElement = createPostElement(post);  
+                    
+                    if (post.section === 'tech') {  
+                        document.getElementById('techPosts').appendChild(postElement.cloneNode(true));  
+                    } else if (post.section === 'daily') {  
+                        document.getElementById('dailyPosts').appendChild(postElement.cloneNode(true));  
+                    }  
+                    
+                    // 如果是当前用户的帖子，也添加到用户板块  
+                    if (currentUser && post.author_employee_id === currentUser.employee_id) {  
+                        document.getElementById('userPosts').appendChild(postElement);  
+                    }  
+                });  
+                
+                // 添加事件  
+                attachPostEvents();  
+                
+                // 更新所有回复状态  
+                window.dbGet(window.dbRef(window.database, 'replies')).then(updateAllReplies);  
+                
+            } catch (error) {  
+                console.error('渲染帖子出错:', error);  
+                showToast('加载帖子出错', false);  
+            } finally {  
+                showLoading(false);  
+            }  
+        }  
+
+        // 附加帖子事件（点赞、删除、回复、置顶）  
+        function attachPostEvents() {  
+            // 点赞事件  
+            document.querySelectorAll('.like-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!currentUser) return;  
+                    
+                    const postElement = event.currentTarget.closest('.post');  
+                    const postId = postElement.dataset.id;  
+                    
+                    // 更新Firebase中的点赞数  
+                    const likesRef = window.dbRef(window.database, `posts/${postId}/likes`);  
+                    window.dbGet(likesRef).then((snapshot) => {  
+                        const currentLikes = snapshot.exists() ? snapshot.val() : 0;  
+                        window.dbSet(likesRef, currentLikes + 1);  
+                    });  
+                });  
+            });  
+            
+            // 删除事件  
+            document.querySelectorAll('.delete-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!currentUser) return;  
+                    
+                    const postElement = event.currentTarget.closest('.post');  
+                    const postId = postElement.dataset.id;  
+                    
+                    if (confirm('确定要删除这条帖子吗？')) {  
+                        // 从Firebase删除帖子  
+                        window.dbRemove(window.dbRef(window.database, `posts/${postId}`))  
+                            .then(() => {  
+                                showToast('删除成功');  
+                                
+                                // 同时删除所有相关回复  
+                                window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
+                                    snapshot.forEach((childSnapshot) => {  
+                                        const reply = childSnapshot.val();  
+                                        if (reply.post_id === postId) {  
+                                            window.dbRemove(window.dbRef(window.database, `replies/${childSnapshot.key}`));  
+                                        }  
+                                    });  
+                                });  
+                            })  
+                            .catch(error => {  
+                                console.error('删除失败:', error);  
+                                showToast('删除失败', false);  
+                            });  
+                    }  
+                });  
+            });  
+            
+            // 置顶事件  
+            document.querySelectorAll('.pin-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!isAdmin) return;  
+                    
+                    const postElement = event.currentTarget.closest('.post');  
+                    const postId = postElement.dataset.id;  
+                    
+                    // 更新Firebase中的置顶状态  
+                    window.dbSet(window.dbRef(window.database, `posts/${postId}/is_pinned`), true)  
+                        .then(() => {  
+                            showToast('帖子已置顶');  
+                        })  
+                        .catch(error => {  
+                            console.error('置顶失败:', error);  
+                            showToast('置顶失败', false);  
+                        });  
+                });  
+            });  
+            
+            // 取消置顶事件  
+            document.querySelectorAll('.unpin-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!isAdmin) return;  
+                    
+                    const postElement = event.currentTarget.closest('.post');  
+                    const postId = postElement.dataset.id;  
+                    
+                    // 更新Firebase中的置顶状态  
+                    window.dbSet(window.dbRef(window.database, `posts/${postId}/is_pinned`), false)  
+                        .then(() => {  
+                            showToast('已取消置顶');  
+                        })  
+                        .catch(error => {  
+                            console.error('取消置顶失败:', error);  
+                            showToast('取消置顶失败', false);  
+                        });  
+                });  
+            });  
+            
+            // 回复按钮事件  
+            document.querySelectorAll('.reply-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!currentUser) {  
+                        showToast('请先登录', false);  
+                        return;  
+                    }  
+                    
+                    const postElement = event.currentTarget.closest('.post');  
+                    const repliesSection = postElement.querySelector('.replies-section');  
+                    
+                    // 切换回复区域显示/隐藏  
+                    if (repliesSection.classList.contains('hidden')) {  
+                        repliesSection.classList.remove('hidden');  
+                        
+                        // 立即加载此帖子的所有回复  
+                        loadRepliesForPost(postElement.dataset.id);  
+                    } else {  
+                        repliesSection.classList.add('hidden');  
+                    }  
+                });  
+            });  
+            
+            // 发送回复事件  
+            document.querySelectorAll('.send-reply-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!currentUser) return;  
+                    
+                    const postElement = event.currentTarget.closest('.post');  
+                    const postId = postElement.dataset.id;  
+                    const replyInput = postElement.querySelector('.reply-input');  
+                    const content = replyInput.value.trim();  
+                    
+                    if (!content) {  
+                        showToast('请输入回复内容', false);  
+                        return;  
+                    }  
+                    
+                    // 创建回复对象  
+                    const replyId = generateId();  
+                    const newReply = {  
+                        id: replyId,  
+                        post_id: postId,  
+                        author_name: currentUser.name,  
+                        author_employee_id: currentUser.employee_id,  
+                        author_avatar: currentUser.avatar_url,  
+                        content: content,  
+                        is_admin: isAdmin,  
+                        created_at: new Date().toISOString()  
+                    };  
+                    
+                    // 保存到Firebase  
+                    window.dbSet(window.dbRef(window.database, 'replies/' + replyId), newReply)  
+                        .then(() => {  
+                            replyInput.value = '';  
+                            showToast('回复成功');  
+                        })  
+                        .catch(error => {  
+                            console.error('回复失败:', error);  
+                            showToast('回复失败: ' + error.message, false);  
+                        });  
+                });  
+            });  
+            
+            // 为所有图片添加点击放大事件  
+            document.querySelectorAll('.post-image').forEach(img => {  
+                img.addEventListener('click', () => {  
+                    if (img.src) {  
+                        showImageModal(img.src);  
+                    }  
+                });  
+            });  
+        }  
+
+        // 加载特定帖子的回复  
+        function loadRepliesForPost(postId) {  
+            const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);  
+            
+            window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
+                const replies = [];  
+                snapshot.forEach((childSnapshot) => {  
+                    const reply = childSnapshot.val();  
+                    if (reply.post_id === postId) {  
+                        replies.push(reply);  
+                    }  
+                });  
+                
+                // 按创建时间排序  
+                replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));  
+                
+                postElements.forEach(postElement => {  
+                    const repliesContainer = postElement.querySelector('.replies-container');  
+                    repliesContainer.innerHTML = '';  
+                    
+                    if (replies.length === 0) {  
+                        repliesContainer.innerHTML = '<p class="text-gray-500 text-sm text-center">暂无回复</p>';  
+                    } else {  
+                        replies.forEach(reply => {  
+                            repliesContainer.appendChild(createReplyElement(reply));  
+                        });  
+                    }  
+                });  
+                
+                // 添加删除回复事件  
+                attachReplyEvents();  
+            });  
+        }  
+        
+        // 更新所有回复  
+        function updateAllReplies(snapshot) {  
+            // 获取所有回复数据  
+            const allReplies = {};  
+            snapshot.forEach(childSnapshot => {  
+                const reply = childSnapshot.val();  
+                if (!allReplies[reply.post_id]) {  
+                    allReplies[reply.post_id] = [];  
+                }  
+                allReplies[reply.post_id].push(reply);  
+            });  
+            
+            // 更新每个帖子的回复显示  
+            for (const postId in allReplies) {  
+                const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);  
+                
+                // 按创建时间排序  
+                allReplies[postId].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));  
+                
+                postElements.forEach(postElement => {  
+                    // 只有回复区域已经展开的帖子才更新回复  
+                    const repliesSection = postElement.querySelector('.replies-section');  
+                    if (!repliesSection.classList.contains('hidden')) {  
+                        const repliesContainer = postElement.querySelector('.replies-container');  
+                        repliesContainer.innerHTML = '';  
+                        
+                        allReplies[postId].forEach(reply => {  
+                            repliesContainer.appendChild(createReplyElement(reply));  
+                        });  
+                    }  
+                });  
+            }  
+            
+            // 添加回复事件  
+            attachReplyEvents();  
+        }  
+        
+        // 创建回复元素  
+        function createReplyElement(reply) {  
+            const template = document.getElementById('replyTemplate');  
+            const replyElement = template.content.cloneNode(true).querySelector('.reply');  
+            
+            // 设置回复ID  
+            replyElement.dataset.id = reply.id;  
+            
+            // 设置作者信息  
+            const avatarElem = replyElement.querySelector('.reply-avatar');  
+            if (reply.author_avatar) {  
+                avatarElem.src = reply.author_avatar;  
+            }  
+            
+            replyElement.querySelector('.reply-author').textContent = reply.author_name;  
+            
+            // 显示管理员标识  
+            if (reply.is_admin) {  
+                replyElement.querySelector('.reply-admin-badge').classList.remove('hidden');  
+            }  
+            
+            // 设置发布时间  
+            const date = new Date(reply.created_at);  
+            replyElement.querySelector('.reply-time').textContent = date.toLocaleString();  
+            
+            // 设置内容  
+            replyElement.querySelector('.reply-content').textContent = reply.content;  
+            
+            // 如果是当前用户的回复或管理员，显示删除按钮  
+            if (currentUser && (reply.author_employee_id === currentUser.employee_id || isAdmin)) {  
+                replyElement.querySelector('.delete-reply-btn').classList.remove('hidden');  
+            }  
+            
+            return replyElement;  
+        }  
+        
+        // 添加回复相关事件  
+        function attachReplyEvents() {  
+            // 删除回复事件  
+            document.querySelectorAll('.delete-reply-btn').forEach(btn => {  
+                btn.addEventListener('click', event => {  
+                    if (!currentUser) return;  
+                    
+                    const replyElement = event.currentTarget.closest('.reply');  
+                    const replyId = replyElement.dataset.id;  
+                    
+                    if (confirm('确定要删除这条回复吗？')) {  
+                        // 从Firebase删除回复  
+                        window.dbRemove(window.dbRef(window.database, `replies/${replyId}`))  
+                            .then(() => {  
+                                showToast('删除回复成功');  
+                            })  
+                            .catch(error => {  
+                                console.error('删除回复失败:', error);  
+                                showToast('删除回复失败', false);  
+                            });  
+                    }  
+                });  
+            });  
+        }  
+
         // 退出登录  
         function logout() {  
             // 清除会话  
@@ -910,6 +1692,112 @@
             } finally {  
                 showLoading(false);  
             }  
+        }  
+
+        // 更新头像  
+        async function updateAvatar() {  
+            if (!currentUser || !document.getElementById('avatarInput').files.length) return;  
+            
+            showLoading(true);  
+            
+            try {  
+                const file = document.getElementById('avatarInput').files[0];  
+                const compressedFile = await compressImage(file);  
+                const avatarUrl = await uploadImageToBase64(compressedFile);  
+                
+                if (!avatarUrl) {  
+                    showToast('头像上传失败', false);  
+                    return;  
+                }  
+                
+                // 更新用户数据中的头像  
+                await window.dbUpdate(window.dbRef(window.database, `users/${currentUser.employee_id}`), {  
+                    avatar_url: avatarUrl  
+                });  
+                
+                // 更新当前用户头像  
+                currentUser.avatar_url = avatarUrl;  
+                
+                // 更新UI  
+                document.getElementById('profileAvatar').src = avatarUrl;  
+                document.getElementById('navUserAvatar').src = avatarUrl;  
+                showToast('头像更新成功');  
+                
+                // 更新该用户发布的所有帖子中的头像  
+                updatePostsWithNewAvatar(avatarUrl);  
+                
+                // 更新该用户发布的所有回复中的头像  
+                updateRepliesWithNewAvatar(avatarUrl);  
+            } catch (error) {  
+                console.error('更新头像失败:', error);  
+                showToast('更新头像失败', false);  
+            } finally {  
+                showLoading(false);  
+            }  
+        }  
+        
+        // 更新用户所有帖子中的头像  
+        function updatePostsWithNewAvatar(newAvatarUrl) {  
+            if (!currentUser) return;  
+            
+            // 获取该用户的所有帖子  
+            window.dbGet(window.dbRef(window.database, 'posts')).then((snapshot) => {  
+                snapshot.forEach((childSnapshot) => {  
+                    const post = childSnapshot.val();  
+                    if (post.author_employee_id === currentUser.employee_id) {  
+                        // 更新每个帖子的作者头像  
+                        window.dbUpdate(window.dbRef(window.database, `posts/${childSnapshot.key}`), { author_avatar: newAvatarUrl });  
+                    }  
+                });  
+            });  
+        }  
+        
+        // 更新用户所有回复中的头像  
+        function updateRepliesWithNewAvatar(newAvatarUrl) {  
+            if (!currentUser) return;  
+            
+            // 获取该用户的所有回复  
+            window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
+                snapshot.forEach((childSnapshot) => {  
+                    const reply = childSnapshot.val();  
+                    if (reply.author_employee_id === currentUser.employee_id) {  
+                        // 更新每个回复的作者头像  
+                        window.dbUpdate(window.dbRef(window.database, `replies/${childSnapshot.key}`), { author_avatar: newAvatarUrl });  
+                    }  
+                });  
+            });  
+        }  
+        
+        // 更新用户所有帖子中的姓名  
+        function updatePostsWithNewName(newName) {  
+            if (!currentUser) return;  
+            
+            // 获取该用户的所有帖子  
+            window.dbGet(window.dbRef(window.database, 'posts')).then((snapshot) => {  
+                snapshot.forEach((childSnapshot) => {  
+                    const post = childSnapshot.val();  
+                    if (post.author_employee_id === currentUser.employee_id) {  
+                        // 更新每个帖子的作者姓名  
+                        window.dbUpdate(window.dbRef(window.database, `posts/${childSnapshot.key}`), { author_name: newName });  
+                    }  
+                });  
+            });  
+        }  
+        
+        // 更新用户所有回复中的姓名  
+        function updateRepliesWithNewName(newName) {  
+            if (!currentUser) return;  
+            
+            // 获取该用户的所有回复  
+            window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
+                snapshot.forEach((childSnapshot) => {  
+                    const reply = childSnapshot.val();  
+                    if (reply.author_employee_id === currentUser.employee_id) {  
+                        // 更新每个回复的作者姓名  
+                        window.dbUpdate(window.dbRef(window.database, `replies/${childSnapshot.key}`), { author_name: newName });  
+                    }  
+                });  
+            });  
         }  
 
         // 初始化管理员列表  
@@ -1423,663 +2311,6 @@
             });  
         }  
 
-        // 图片压缩功能  
-        function compressImage(file) {  
-            return new Promise((resolve) => {  
-                const reader = new FileReader();  
-                reader.onload = function(event) {  
-                    const img = new Image();  
-                    img.onload = function() {  
-                        // 创建一个canvas元素  
-                        const canvas = document.createElement('canvas');  
-                        
-                        // 计算新尺寸 (最大800px)  
-                        let width = img.width;  
-                        let height = img.height;  
-                        const maxSize = 800;  
-                        
-                        if (width > height && width > maxSize) {  
-                            height = Math.round(height * maxSize / width);  
-                            width = maxSize;  
-                        } else if (height > maxSize) {  
-                            width = Math.round(width * maxSize / height);  
-                            height = maxSize;  
-                        }  
-                        
-                        // 设置canvas大小  
-                        canvas.width = width;  
-                        canvas.height = height;  
-                        
-                        // 绘制压缩后的图片  
-                        const ctx = canvas.getContext('2d');  
-                        ctx.drawImage(img, 0, 0, width, height);  
-                        
-                        // 转换为Blob  
-                        canvas.toBlob(function(blob) {  
-                            resolve(new File([blob], file.name || 'image.jpg', {  
-                                type: 'image/jpeg',  
-                                lastModified: Date.now()  
-                            }));  
-                        }, 'image/jpeg', 0.7); // 质量设为0.7  
-                    };  
-                    img.src = event.target.result;  
-                };  
-                reader.readAsDataURL(file);  
-            });  
-        }  
-
-        // 直接转换图片为Base64  
-        async function uploadImageToBase64(file) {  
-            try {  
-                // 直接使用Base64编码方式存储图片，提高兼容性  
-                return new Promise((resolve) => {  
-                    const reader = new FileReader();  
-                    reader.onloadend = () => {  
-                        // 确保生成有效的数据URL  
-                        const result = reader.result;  
-                        if (typeof result === 'string' && result.startsWith('data:')) {  
-                            console.log("成功生成图片数据URL");  
-                            resolve(result);  
-                        } else {  
-                            console.error('图片编码异常');  
-                            resolve(null);  
-                        }  
-                    };  
-                    reader.onerror = () => {  
-                        console.error('读取文件失败');  
-                        resolve(null);  
-                    };  
-                    reader.readAsDataURL(file);  
-                });  
-            } catch (error) {  
-                console.error('图片处理错误:', error);  
-                return null;  
-            }  
-        }  
-
-        // 创建帖子   
-        async function createPost(section) {  
-            if (!currentUser) {  
-                showToast('请先登录', false);  
-                return;  
-            }  
-            
-            const contentElem = document.getElementById(`${section}PostContent`);  
-            const imageElem = document.getElementById(`${section}PostImage`);  
-            const content = contentElem.value.trim();  
-            const imageFile = imageElem.files[0];  
-            
-            if (!content) {  
-                showToast('请输入内容', false);  
-                return;  
-            }  
-            
-            showLoading(true);  
-            
-            try {  
-                let imageUrl = null;  
-                
-                // 如果有图片，处理并上传  
-                if (imageFile) {  
-                    const compressedFile = await compressImage(imageFile);  
-                    imageUrl = await uploadImageToBase64(compressedFile);  
-                }  
-                
-                // 创建帖子对象  
-                const postId = generateId();  
-                const newPost = {  
-                    id: postId,  
-                    author_name: currentUser.name,  
-                    author_employee_id: currentUser.employee_id,  
-                    author_avatar: currentUser.avatar_url,  
-                    content: content,  
-                    image_url: imageUrl,  
-                    section: section,  
-                    is_admin: isAdmin,  
-                    is_pinned: false, // 默认不置顶  
-                    likes: 0,  
-                    created_at: new Date().toISOString()  
-                };  
-                
-                // 保存到Firebase  
-                await window.dbSet(window.dbRef(window.database, 'posts/' + postId), newPost);  
-                
-                contentElem.value = '';  
-                imageElem.value = '';  
-                showToast('发布成功');  
-            } catch (error) {  
-                console.error('发布失败:', error);  
-                showToast('发布失败: ' + error.message, false);  
-            } finally {  
-                showLoading(false);  
-            }  
-        }  
-        
-        // 渲染帖子  
-        function renderPosts(snapshot) {  
-            showLoading(true);  
-            
-            try {  
-                // 清空现有帖子  
-                document.getElementById('techPosts').innerHTML = '';  
-                document.getElementById('dailyPosts').innerHTML = '';  
-                document.getElementById('userPosts').innerHTML = '';  
-                
-                const posts = [];  
-                snapshot.forEach((childSnapshot) => {  
-                    posts.push(childSnapshot.val());  
-                });  
-                
-                // 修改排序逻辑：置顶帖子在前，然后按时间排序  
-                posts.sort((a, b) => {  
-                    // 首先按照置顶状态排序  
-                    if (a.is_pinned && !b.is_pinned) return -1;  
-                    if (!a.is_pinned && b.is_pinned) return 1;  
-                    
-                    // 然后按照时间排序，最新的在前面  
-                    return new Date(b.created_at) - new Date(a.created_at);  
-                });  
-                
-                // 渲染到各个板块  
-                posts.forEach(post => {  
-                    const postElement = createPostElement(post);  
-                    
-                    if (post.section === 'tech') {  
-                        document.getElementById('techPosts').appendChild(postElement.cloneNode(true));  
-                    } else if (post.section === 'daily') {  
-                        document.getElementById('dailyPosts').appendChild(postElement.cloneNode(true));  
-                    }  
-                    
-                    // 如果是当前用户的帖子，也添加到用户板块  
-                    if (currentUser && post.author_employee_id === currentUser.employee_id) {  
-                        document.getElementById('userPosts').appendChild(postElement);  
-                    }  
-                });  
-                
-                // 添加事件  
-                attachPostEvents();  
-                
-                // 更新所有回复状态  
-                window.dbGet(window.dbRef(window.database, 'replies')).then(updateAllReplies);  
-                
-            } catch (error) {  
-                console.error('渲染帖子出错:', error);  
-                showToast('加载帖子出错', false);  
-            } finally {  
-                showLoading(false);  
-            }  
-        }  
-
-        // 创建帖子DOM元素  
-        function createPostElement(post) {  
-            const template = document.getElementById('postTemplate');  
-            const postElement = template.content.cloneNode(true).querySelector('.post');  
-            
-            // 设置帖子ID  
-            postElement.dataset.id = post.id;  
-            
-            // 设置作者信息  
-            const avatarElem = postElement.querySelector('.post-avatar');  
-            if (post.author_avatar) {  
-                avatarElem.src = post.author_avatar;  
-            }  
-            
-            postElement.querySelector('.post-author').textContent = post.author_name;  
-            
-            // 显示管理员标识  
-            if (post.is_admin) {  
-                postElement.querySelector('.post-admin-badge').classList.remove('hidden');  
-            }  
-            
-            // 显示置顶标识  
-            if (post.is_pinned) {  
-                postElement.querySelector('.post-pinned-badge').classList.remove('hidden');  
-            }  
-            
-            // 设置发布时间  
-            const date = new Date(post.created_at);  
-            postElement.querySelector('.post-time').textContent = date.toLocaleString();  
-            
-            // 设置内容  
-            postElement.querySelector('.post-content').textContent = post.content;  
-            
-            // 增强的图片显示逻辑  
-            if (post.image_url) {  
-                const imageContainer = postElement.querySelector('.post-image-container');  
-                const imageElem = postElement.querySelector('.post-image');  
-                
-                // 强制移除hidden类并确保显示  
-                imageContainer.classList.remove('hidden');  
-                
-                // 设置图片源  
-                imageElem.src = post.image_url;  
-                
-                // 添加延迟加载和错误处理  
-                imageElem.addEventListener('error', function() {  
-                    console.error('图片加载失败，尝试重新加载', post.image_url);  
-                    setTimeout(() => {  
-                        // 尝试添加时间戳刷新缓存  
-                        imageElem.src = post.image_url.includes('?')   
-                            ? post.image_url + '&t=' + new Date().getTime()   
-                            : post.image_url + '?t=' + new Date().getTime();  
-                    }, 500);  
-                });  
-            }  
-            
-            // 设置点赞数  
-            postElement.querySelector('.like-count').textContent = post.likes || 0;  
-            
-            // 如果是当前用户的帖子或管理员，显示删除按钮  
-            if (currentUser && (post.author_employee_id === currentUser.employee_id || isAdmin)) {  
-                postElement.querySelector('.delete-btn').classList.remove('hidden');  
-            }  
-            
-            // 如果是管理员，显示置顶/取消置顶按钮  
-            if (isAdmin) {  
-                if (post.is_pinned) {  
-                    postElement.querySelector('.unpin-btn').classList.remove('hidden');  
-                } else {  
-                    postElement.querySelector('.pin-btn').classList.remove('hidden');  
-                }  
-            }  
-            
-            return postElement;  
-        }  
-
-        // 附加帖子事件（点赞、删除、回复、置顶）  
-        function attachPostEvents() {  
-            // 点赞事件  
-            document.querySelectorAll('.like-btn').forEach(btn => {  
-                btn.addEventListener('click', event => {  
-                    if (!currentUser) return;  
-                    
-                    const postElement = event.currentTarget.closest('.post');  
-                    const postId = postElement.dataset.id;  
-                    
-                    // 更新Firebase中的点赞数  
-                    const likesRef = window.dbRef(window.database, `posts/${postId}/likes`);  
-                    window.dbGet(likesRef).then((snapshot) => {  
-                        const currentLikes = snapshot.exists() ? snapshot.val() : 0;  
-                        window.dbSet(likesRef, currentLikes + 1);  
-                    });  
-                });  
-            });  
-            
-            // 删除事件  
-            document.querySelectorAll('.delete-btn').forEach(btn => {  
-                btn.addEventListener('click', event => {  
-                    if (!currentUser) return;  
-                    
-                    const postElement = event.currentTarget.closest('.post');  
-                    const postId = postElement.dataset.id;  
-                    
-                    if (confirm('确定要删除这条帖子吗？')) {  
-                        // 从Firebase删除帖子  
-                        window.dbRemove(window.dbRef(window.database, `posts/${postId}`))  
-                            .then(() => {  
-                                showToast('删除成功');  
-                                
-                                // 同时删除所有相关回复  
-                                window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
-                                    snapshot.forEach((childSnapshot) => {  
-                                        const reply = childSnapshot.val();  
-                                        if (reply.post_id === postId) {  
-                                            window.dbRemove(window.dbRef(window.database, `replies/${childSnapshot.key}`));  
-                                        }  
-                                    });  
-                                });  
-                            })  
-                            .catch(error => {  
-                                console.error('删除失败:', error);  
-                                showToast('删除失败', false);  
-                            });  
-                    }  
-                });  
-            });  
-            
-            // 置顶事件  
-            document.querySelectorAll('.pin-btn').forEach(btn => {  
-                btn.addEventListener('click', event => {  
-                    if (!isAdmin) return;  
-                    
-                    const postElement = event.currentTarget.closest('.post');  
-                    const postId = postElement.dataset.id;  
-                    
-                    // 更新Firebase中的置顶状态  
-                    window.dbSet(window.dbRef(window.database, `posts/${postId}/is_pinned`), true)  
-                        .then(() => {  
-                            showToast('帖子已置顶');  
-                        })  
-                        .catch(error => {  
-                            console.error('置顶失败:', error);  
-                            showToast('置顶失败', false);  
-                        });  
-                });  
-            });  
-            
-            // 取消置顶事件  
-            document.querySelectorAll('.unpin-btn').forEach(btn => {  
-                btn.addEventListener('click', event => {  
-                    if (!isAdmin) return;  
-                    
-                    const postElement = event.currentTarget.closest('.post');  
-                    const postId = postElement.dataset.id;  
-                    
-                    // 更新Firebase中的置顶状态  
-                    window.dbSet(window.dbRef(window.database, `posts/${postId}/is_pinned`), false)  
-                        .then(() => {  
-                            showToast('已取消置顶');  
-                        })  
-                        .catch(error => {  
-                            console.error('取消置顶失败:', error);  
-                            showToast('取消置顶失败', false);  
-                        });  
-                });  
-            });  
-            
-            // 回复按钮事件  
-            document.querySelectorAll('.reply-btn').forEach(btn => {  
-                btn.addEventListener('click', event => {  
-                    if (!currentUser) {  
-                        showToast('请先登录', false);  
-                        return;  
-                    }  
-                    
-                    const postElement = event.currentTarget.closest('.post');  
-                    const repliesSection = postElement.querySelector('.replies-section');  
-                    
-                    // 切换回复区域显示/隐藏  
-                    if (repliesSection.classList.contains('hidden')) {  
-                        repliesSection.classList.remove('hidden');  
-                        
-                        // 立即加载此帖子的所有回复  
-                        loadRepliesForPost(postElement.dataset.id);  
-                    } else {  
-                        repliesSection.classList.add('hidden');  
-                    }  
-                });  
-            });  
-            
-            // 发送回复事件  
-            document.querySelectorAll('.send-reply-btn').forEach(btn => {  
-                btn.addEventListener('click', event => {  
-                    if (!currentUser) return;  
-                    
-                    const postElement = event.currentTarget.closest('.post');  
-                    const postId = postElement.dataset.id;  
-                    const replyInput = postElement.querySelector('.reply-input');  
-                    const content = replyInput.value.trim();  
-                    
-                    if (!content) {  
-                        showToast('请输入回复内容', false);  
-                        return;  
-                    }  
-                    
-                    // 创建回复对象  
-                    const replyId = generateId();  
-                    const newReply = {  
-                        id: replyId,  
-                        post_id: postId,  
-                        author_name: currentUser.name,  
-                        author_employee_id: currentUser.employee_id,  
-                        author_avatar: currentUser.avatar_url,  
-                        content: content,  
-                        is_admin: isAdmin,  
-                        created_at: new Date().toISOString()  
-                    };  
-                    
-                    // 保存到Firebase  
-                    window.dbSet(window.dbRef(window.database, 'replies/' + replyId), newReply)  
-                        .then(() => {  
-                            replyInput.value = '';  
-                            showToast('回复成功');  
-                        })  
-                        .catch(error => {  
-                            console.error('回复失败:', error);  
-                            showToast('回复失败: ' + error.message, false);  
-                        });  
-                });  
-            });  
-        }  
-
-        // 加载特定帖子的回复  
-        function loadRepliesForPost(postId) {  
-            const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);  
-            
-            window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
-                const replies = [];  
-                snapshot.forEach((childSnapshot) => {  
-                    const reply = childSnapshot.val();  
-                    if (reply.post_id === postId) {  
-                        replies.push(reply);  
-                    }  
-                });  
-                
-                // 按创建时间排序  
-                replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));  
-                
-                postElements.forEach(postElement => {  
-                    const repliesContainer = postElement.querySelector('.replies-container');  
-                    repliesContainer.innerHTML = '';  
-                    
-                    if (replies.length === 0) {  
-                        repliesContainer.innerHTML = '<p class="text-gray-500 text-sm text-center">暂无回复</p>';  
-                    } else {  
-                        replies.forEach(reply => {  
-                            repliesContainer.appendChild(createReplyElement(reply));  
-                        });  
-                    }  
-                });  
-                
-                // 添加删除回复事件  
-                attachReplyEvents();  
-            });  
-        }  
-        
-        // 更新所有回复  
-        function updateAllReplies(snapshot) {  
-            // 获取所有回复数据  
-            const allReplies = {};  
-            snapshot.forEach(childSnapshot => {  
-                const reply = childSnapshot.val();  
-                if (!allReplies[reply.post_id]) {  
-                    allReplies[reply.post_id] = [];  
-                }  
-                allReplies[reply.post_id].push(reply);  
-            });  
-            
-            // 更新每个帖子的回复显示  
-            for (const postId in allReplies) {  
-                const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);  
-                
-                // 按创建时间排序  
-                allReplies[postId].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));  
-                
-                postElements.forEach(postElement => {  
-                    // 只有回复区域已经展开的帖子才更新回复  
-                    const repliesSection = postElement.querySelector('.replies-section');  
-                    if (!repliesSection.classList.contains('hidden')) {  
-                        const repliesContainer = postElement.querySelector('.replies-container');  
-                        repliesContainer.innerHTML = '';  
-                        
-                        allReplies[postId].forEach(reply => {  
-                            repliesContainer.appendChild(createReplyElement(reply));  
-                        });  
-                    }  
-                });  
-            }  
-            
-            // 添加回复事件  
-            attachReplyEvents();  
-        }  
-        
-        // 创建回复元素  
-        function createReplyElement(reply) {  
-            const template = document.getElementById('replyTemplate');  
-            const replyElement = template.content.cloneNode(true).querySelector('.reply');  
-            
-            // 设置回复ID  
-            replyElement.dataset.id = reply.id;  
-            
-            // 设置作者信息  
-            const avatarElem = replyElement.querySelector('.reply-avatar');  
-            if (reply.author_avatar) {  
-                avatarElem.src = reply.author_avatar;  
-            }  
-            
-            replyElement.querySelector('.reply-author').textContent = reply.author_name;  
-            
-            // 显示管理员标识  
-            if (reply.is_admin) {  
-                replyElement.querySelector('.reply-admin-badge').classList.remove('hidden');  
-            }  
-            
-            // 设置发布时间  
-            const date = new Date(reply.created_at);  
-            replyElement.querySelector('.reply-time').textContent = date.toLocaleString();  
-            
-            // 设置内容  
-            replyElement.querySelector('.reply-content').textContent = reply.content;  
-            
-            // 如果是当前用户的回复或管理员，显示删除按钮  
-            if (currentUser && (reply.author_employee_id === currentUser.employee_id || isAdmin)) {  
-                replyElement.querySelector('.delete-reply-btn').classList.remove('hidden');  
-            }  
-            
-            return replyElement;  
-        }  
-        
-        // 添加回复相关事件  
-        function attachReplyEvents() {  
-            // 删除回复事件  
-            document.querySelectorAll('.delete-reply-btn').forEach(btn => {  
-                btn.addEventListener('click', event => {  
-                    if (!currentUser) return;  
-                    
-                    const replyElement = event.currentTarget.closest('.reply');  
-                    const replyId = replyElement.dataset.id;  
-                    
-                    if (confirm('确定要删除这条回复吗？')) {  
-                        // 从Firebase删除回复  
-                        window.dbRemove(window.dbRef(window.database, `replies/${replyId}`))  
-                            .then(() => {  
-                                showToast('删除回复成功');  
-                            })  
-                            .catch(error => {  
-                                console.error('删除回复失败:', error);  
-                                showToast('删除回复失败', false);  
-                            });  
-                    }  
-                });  
-            });  
-        }  
-
-        // 更新头像  
-        async function updateAvatar() {  
-            if (!currentUser || !document.getElementById('avatarInput').files.length) return;  
-            
-            showLoading(true);  
-            
-            try {  
-                const file = document.getElementById('avatarInput').files[0];  
-                const compressedFile = await compressImage(file);  
-                const avatarUrl = await uploadImageToBase64(compressedFile);  
-                
-                if (!avatarUrl) {  
-                    showToast('头像上传失败', false);  
-                    return;  
-                }  
-                
-                // 更新用户数据中的头像  
-                await window.dbUpdate(window.dbRef(window.database, `users/${currentUser.employee_id}`), {  
-                    avatar_url: avatarUrl  
-                });  
-                
-                // 更新当前用户头像  
-                currentUser.avatar_url = avatarUrl;  
-                
-                // 更新UI  
-                document.getElementById('profileAvatar').src = avatarUrl;  
-                document.getElementById('navUserAvatar').src = avatarUrl;  
-                showToast('头像更新成功');  
-                
-                // 更新该用户发布的所有帖子中的头像  
-                updatePostsWithNewAvatar(avatarUrl);  
-                
-                // 更新该用户发布的所有回复中的头像  
-                updateRepliesWithNewAvatar(avatarUrl);  
-            } catch (error) {  
-                console.error('更新头像失败:', error);  
-                showToast('更新头像失败', false);  
-            } finally {  
-                showLoading(false);  
-            }  
-        }  
-        
-        // 更新用户所有帖子中的头像  
-        function updatePostsWithNewAvatar(newAvatarUrl) {  
-            if (!currentUser) return;  
-            
-            // 获取该用户的所有帖子  
-            window.dbGet(window.dbRef(window.database, 'posts')).then((snapshot) => {  
-                snapshot.forEach((childSnapshot) => {  
-                    const post = childSnapshot.val();  
-                    if (post.author_employee_id === currentUser.employee_id) {  
-                        // 更新每个帖子的作者头像  
-                        window.dbUpdate(window.dbRef(window.database, `posts/${childSnapshot.key}`), { author_avatar: newAvatarUrl });  
-                    }  
-                });  
-            });  
-        }  
-        
-        // 更新用户所有回复中的头像  
-        function updateRepliesWithNewAvatar(newAvatarUrl) {  
-            if (!currentUser) return;  
-            
-            // 获取该用户的所有回复  
-            window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
-                snapshot.forEach((childSnapshot) => {  
-                    const reply = childSnapshot.val();  
-                    if (reply.author_employee_id === currentUser.employee_id) {  
-                        // 更新每个回复的作者头像  
-                        window.dbUpdate(window.dbRef(window.database, `replies/${childSnapshot.key}`), { author_avatar: newAvatarUrl });  
-                    }  
-                });  
-            });  
-        }  
-        
-        // 更新用户所有帖子中的姓名  
-        function updatePostsWithNewName(newName) {  
-            if (!currentUser) return;  
-            
-            // 获取该用户的所有帖子  
-            window.dbGet(window.dbRef(window.database, 'posts')).then((snapshot) => {  
-                snapshot.forEach((childSnapshot) => {  
-                    const post = childSnapshot.val();  
-                    if (post.author_employee_id === currentUser.employee_id) {  
-                        // 更新每个帖子的作者姓名  
-                        window.dbUpdate(window.dbRef(window.database, `posts/${childSnapshot.key}`), { author_name: newName });  
-                    }  
-                });  
-            });  
-        }  
-        
-        // 更新用户所有回复中的姓名  
-        function updateRepliesWithNewName(newName) {  
-            if (!currentUser) return;  
-            
-            // 获取该用户的所有回复  
-            window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
-                snapshot.forEach((childSnapshot) => {  
-                    const reply = childSnapshot.val();  
-                    if (reply.author_employee_id === currentUser.employee_id) {  
-                        // 更新每个回复的作者姓名  
-                        window.dbUpdate(window.dbRef(window.database, `replies/${childSnapshot.key}`), { author_name: newName });  
-                    }  
-                });  
-            });  
-        }  
-
         // 添加初始帖子（如果Firebase为空）  
         function addInitialPostsIfNeeded() {  
             window.dbGet(window.dbRef(window.database, 'posts')).then((snapshot) => {  
@@ -2120,4 +2351,3 @@
     </script>  
 </body>  
 </html>  
-                                
