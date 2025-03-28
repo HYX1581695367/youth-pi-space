@@ -1179,7 +1179,7 @@
                             : 'mr-2 px-2 py-1 bg-green-500 text-white rounded text-xs';  
                         adminBtn.textContent = user.is_admin ? '移除管理员' : '设为管理员';  
                         adminBtn.addEventListener('click', () => {  
-                                 if (user.is_admin) {  
+                            if (user.is_admin) {  
                                 removeAdmin(user.employee_id);  
                                 setTimeout(() => loadAllUsers(), 500);  
                             } else {  
@@ -2119,4 +2119,5 @@
         }  
     </script>  
 </body>  
-</html>                               
+</html>  
+                                
