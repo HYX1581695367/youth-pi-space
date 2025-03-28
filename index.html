@@ -6,10 +6,6 @@
     <title>装备部件团支部青年π空间</title>  
     <script src="https://cdn.tailwindcss.com"></script>  
     
-    <!-- Firebase SDK -->  
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>  
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>  
-    
     <!-- 密码哈希库 -->  
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>  
     
@@ -358,8 +354,13 @@
         </div>  
     </template>  
 
-    <script>  
-        // Firebase 配置  
+    <!-- Firebase SDK 导入 - 使用新的模块化API -->  
+    <script type="module">  
+        // 导入Firebase需要的功能  
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";  
+        import { getDatabase, ref, set, remove, update, onValue, get, push, child, orderByChild, equalTo, transaction } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";  
+
+        // Firebase配置  
         const firebaseConfig = {  
             apiKey: "AIzaSyC19CX0gSWAzvFevy43EQRy4uX1A265LuM",  
             authDomain: "youth-pi-space.firebaseapp.com",  
@@ -369,11 +370,27 @@
             messagingSenderId: "895213716516",  
             appId: "1:895213716516:web:9548b7964aaf3074b504b1"  
         };  
+
+        // 初始化Firebase  
+        const app = initializeApp(firebaseConfig);  
+        const database = getDatabase(app);  
         
-        // 初始化 Firebase  
-        firebase.initializeApp(firebaseConfig);  
-        const database = firebase.database();  
-        
+        // 将数据库引用和方法放入全局变量中以便非模块脚本使用  
+        window.database = database;  
+        window.dbRef = ref;  
+        window.dbSet = set;  
+        window.dbRemove = remove;  
+        window.dbUpdate = update;  
+        window.dbOnValue = onValue;  
+        window.dbGet = get;  
+        window.dbPush = push;  
+        window.dbChild = child;  
+        window.dbOrderByChild = orderByChild;  
+        window.dbEqualTo = equalTo;  
+        window.dbTransaction = transaction;  
+    </script>  
+
+    <script>  
         // 当前用户对象  
         let currentUser = null;  
         let isAdmin = false;  
@@ -520,7 +537,7 @@
         
         // 初始化系统管理员账号  
         function addInitialSystemAdmin() {  
-            database.ref('users/admin001').once('value').then((snapshot) => {  
+            window.dbGet(window.dbRef(window.database, 'users/admin001')).then((snapshot) => {  
                 if (!snapshot.exists()) {  
                     console.log('创建系统管理员账号');  
                     
@@ -537,10 +554,10 @@
                         created_at: new Date().toISOString()  
                     };  
                     
-                    database.ref('users/admin001').set(adminUser);  
+                    window.dbSet(window.dbRef(window.database, 'users/admin001'), adminUser);  
                     
                     // 确保管理员列表中有此账号  
-                    database.ref('admins/admin001').set(true);  
+                    window.dbSet(window.dbRef(window.database, 'admins/admin001'), true);  
                 }  
             });  
         }  
@@ -555,7 +572,7 @@
                     const now = new Date().getTime();  
                     if (session.expires > now) {  
                         // 会话有效，从Firebase获取最新用户数据  
-                        database.ref(`users/${session.employee_id}`).once('value').then((snapshot) => {  
+                        window.dbGet(window.dbRef(window.database, `users/${session.employee_id}`)).then((snapshot) => {  
                             if (snapshot.exists()) {  
                                 currentUser = snapshot.val();  
                                 checkAndUpdateAdminStatus();  
@@ -604,7 +621,7 @@
             // 系统管理员特殊处理  
             if (employeeId === 'admin001' && password === 'admin123') {  
                 // 直接验证系统管理员  
-                database.ref(`users/admin001`).once('value').then((snapshot) => {  
+                window.dbGet(window.dbRef(window.database, `users/admin001`)).then((snapshot) => {  
                     if (snapshot.exists()) {  
                         currentUser = snapshot.val();  
                         isAdmin = true;  
@@ -641,7 +658,7 @@
             }  
             
             // 普通用户登录  
-            database.ref(`users/${employeeId}`).once('value').then((snapshot) => {  
+            window.dbGet(window.dbRef(window.database, `users/${employeeId}`)).then((snapshot) => {  
                 if (snapshot.exists()) {  
                     const userData = snapshot.val();  
                     
@@ -711,7 +728,7 @@
             
             try {  
                 // 检查工号是否已存在  
-                const snapshot = await database.ref(`users/${employeeId}`).once('value');  
+                const snapshot = await window.dbGet(window.dbRef(window.database, `users/${employeeId}`));  
                 if (snapshot.exists()) {  
                     showToast('该工号已被注册', false);  
                     showLoading(false);  
@@ -722,7 +739,7 @@
                 let avatarUrl = 'https://via.placeholder.com/100';  
                 if (avatarFile) {  
                     const compressedFile = await compressImage(avatarFile);  
-                    avatarUrl = await uploadImageToImgBB(compressedFile);  
+                    avatarUrl = await uploadImageToBase64(compressedFile);  
                     if (!avatarUrl) {  
                         showToast('头像上传失败，使用默认头像', false);  
                         avatarUrl = 'https://via.placeholder.com/100';  
@@ -745,7 +762,7 @@
                 };  
                 
                 // 保存到Firebase  
-                await database.ref(`users/${employeeId}`).set(newUser);  
+                await window.dbSet(window.dbRef(window.database, `users/${employeeId}`), newUser);  
                 
                 // 清空注册表单  
                 document.getElementById('registerName').value = '';  
@@ -779,8 +796,10 @@
             postsInitialized = false;  
             
             // 移除实时监听器  
-            database.ref('posts').off();  
-            database.ref('replies').off();  
+            const postsRef = window.dbRef(window.database, 'posts');  
+            const repliesRef = window.dbRef(window.database, 'replies');  
+            window.dbOnValue(postsRef, () => {}, { onlyOnce: true });  
+            window.dbOnValue(repliesRef, () => {}, { onlyOnce: true });  
             
             // 显示登录表单  
             document.getElementById('loginContainer').classList.remove('hidden');  
@@ -853,14 +872,14 @@
                 // 如果有头像更新  
                 if (avatarFile) {  
                     const compressedFile = await compressImage(avatarFile);  
-                    const avatarUrl = await uploadImageToImgBB(compressedFile);  
+                    const avatarUrl = await uploadImageToBase64(compressedFile);  
                     if (avatarUrl) {  
                         updates.avatar_url = avatarUrl;  
                     }  
                 }  
                 
                 // 更新到Firebase  
-                await database.ref(`users/${currentUser.employee_id}`).update(updates);  
+                await window.dbUpdate(window.dbRef(window.database, `users/${currentUser.employee_id}`), updates);  
                 
                 // 更新本地对象  
                 Object.assign(currentUser, updates);  
@@ -896,17 +915,17 @@
         // 初始化管理员列表  
         function initializeAdminList() {  
             // 检查管理员列表是否存在，如果不存在则初始化  
-            database.ref('admins').once('value').then((snapshot) => {  
+            window.dbGet(window.dbRef(window.database, 'admins')).then((snapshot) => {  
                 if (!snapshot.exists()) {  
                     // 创建默认管理员列表  
                     const defaultAdmins = {  
                         'admin001': true  
                     };  
-                    database.ref('admins').set(defaultAdmins);  
+                    window.dbSet(window.dbRef(window.database, 'admins'), defaultAdmins);  
                 }  
                 
                 // 设置管理员列表变化监听  
-                database.ref('admins').on('value', (snapshot) => {  
+                window.dbOnValue(window.dbRef(window.database, 'admins'), (snapshot) => {  
                     updateAdminList(snapshot);  
                     
                     // 如果当前用户已登录，更新其管理员状态  
@@ -983,27 +1002,27 @@
             }  
             
             // 检查是否已经是管理员  
-            database.ref(`admins/${newAdminId}`).once('value').then((snapshot) => {  
+            window.dbGet(window.dbRef(window.database, `admins/${newAdminId}`)).then((snapshot) => {  
                 if (snapshot.exists()) {  
                     showToast('该工号已经是管理员', false);  
                     return;  
                 }  
                 
                 // 检查该工号是否存在  
-                database.ref(`users/${newAdminId}`).once('value').then((userSnapshot) => {  
+                window.dbGet(window.dbRef(window.database, `users/${newAdminId}`)).then((userSnapshot) => {  
                     if (!userSnapshot.exists()) {  
                         showToast('该工号尚未注册', false);  
                         return;  
                     }  
                     
                     // 添加到管理员列表  
-                    database.ref(`admins/${newAdminId}`).set(true)  
+                    window.dbSet(window.dbRef(window.database, `admins/${newAdminId}`), true)  
                         .then(() => {  
                             document.getElementById('newAdminId').value = '';  
                             showToast(`已将工号 ${newAdminId} 设为管理员`);  
                             
                             // 更新用户数据中的管理员标识  
-                            database.ref(`users/${newAdminId}`).update({ is_admin: true });  
+                            window.dbUpdate(window.dbRef(window.database, `users/${newAdminId}`), { is_admin: true });  
                             
                             // 更新该工号发布的所有内容的管理员状态  
                             updateUserContentAdminStatusByEmployeeId(newAdminId, true);  
@@ -1035,12 +1054,12 @@
             }  
             
             // 从管理员列表中移除  
-            database.ref(`admins/${adminId}`).remove()  
+            window.dbRemove(window.dbRef(window.database, `admins/${adminId}`))  
                 .then(() => {  
                     showToast(`已移除管理员 ${adminId}`);  
                     
                     // 更新用户数据中的管理员标识  
-                    database.ref(`users/${adminId}`).update({ is_admin: false });  
+                    window.dbUpdate(window.dbRef(window.database, `users/${adminId}`), { is_admin: false });  
                     
                     // 更新该工号发布的所有内容的管理员状态  
                     updateUserContentAdminStatusByEmployeeId(adminId, false);  
@@ -1062,7 +1081,7 @@
             document.getElementById('adminPanelContainer').classList.remove('hidden');  
             
             // 加载最新管理员列表  
-            database.ref('admins').once('value').then(updateAdminList);  
+            window.dbGet(window.dbRef(window.database, 'admins')).then(updateAdminList);  
         }  
         
         // 隐藏管理员面板  
@@ -1095,7 +1114,7 @@
         function loadAllUsers() {  
             showLoading(true);  
             
-            database.ref('users').once('value').then((snapshot) => {  
+            window.dbGet(window.dbRef(window.database, 'users')).then((snapshot) => {  
                 const userTable = document.getElementById('userTable');  
                 userTable.innerHTML = '';  
                 
@@ -1205,12 +1224,12 @@
             }  
             
             // 添加到管理员列表  
-            database.ref(`admins/${employeeId}`).set(true)  
+            window.dbSet(window.dbRef(window.database, `admins/${employeeId}`), true)  
                 .then(() => {  
                     showToast(`已将工号 ${employeeId} 设为管理员`);  
                     
                     // 更新用户数据中的管理员标识  
-                    database.ref(`users/${employeeId}`).update({ is_admin: true });  
+                    window.dbUpdate(window.dbRef(window.database, `users/${employeeId}`), { is_admin: true });  
                     
                     // 更新该工号发布的所有内容的管理员状态  
                     updateUserContentAdminStatusByEmployeeId(employeeId, true);  
@@ -1224,7 +1243,7 @@
                 });  
         }  
         
-                // 删除用户  
+        // 删除用户  
         function deleteUser(employeeId) {  
             if (!isSystemAdmin) {  
                 showToast('只有系统管理员可以删除用户', false);  
@@ -1234,32 +1253,38 @@
             showLoading(true);  
             
             // 首先从管理员列表中移除  
-            database.ref(`admins/${employeeId}`).remove()  
+            window.dbRemove(window.dbRef(window.database, `admins/${employeeId}`))  
                 .then(() => {  
                     // 删除用户所有帖子  
-                    return database.ref('posts').orderByChild('author_employee_id').equalTo(employeeId).once('value');  
+                    return window.dbGet(window.dbRef(window.database, 'posts'));  
                 })  
                 .then((snapshot) => {  
                     const promises = [];  
                     snapshot.forEach((childSnapshot) => {  
-                        promises.push(database.ref(`posts/${childSnapshot.key}`).remove());  
+                        const post = childSnapshot.val();  
+                        if (post.author_employee_id === employeeId) {  
+                            promises.push(window.dbRemove(window.dbRef(window.database, `posts/${childSnapshot.key}`)));  
+                        }  
                     });  
                     return Promise.all(promises);  
                 })  
                 .then(() => {  
                     // 删除用户所有回复  
-                    return database.ref('replies').orderByChild('author_employee_id').equalTo(employeeId).once('value');  
+                    return window.dbGet(window.dbRef(window.database, 'replies'));  
                 })  
                 .then((snapshot) => {  
                     const promises = [];  
                     snapshot.forEach((childSnapshot) => {  
-                        promises.push(database.ref(`replies/${childSnapshot.key}`).remove());  
+                        const reply = childSnapshot.val();  
+                        if (reply.author_employee_id === employeeId) {  
+                            promises.push(window.dbRemove(window.dbRef(window.database, `replies/${childSnapshot.key}`)));  
+                        }  
                     });  
                     return Promise.all(promises);  
                 })  
                 .then(() => {  
                     // 最后删除用户账号  
-                    return database.ref(`users/${employeeId}`).remove();  
+                    return window.dbRemove(window.dbRef(window.database, `users/${employeeId}`));  
                 })  
                 .then(() => {  
                     showToast(`用户 ${employeeId} 删除成功`);  
@@ -1287,7 +1312,7 @@
             }  
             
             // 检查普通管理员状态  
-            database.ref(`admins/${currentUser.employee_id}`).once('value').then((snapshot) => {  
+            window.dbGet(window.dbRef(window.database, `admins/${currentUser.employee_id}`)).then((snapshot) => {  
                 isAdmin = snapshot.exists();  
                 isSystemAdmin = false;  
                 
@@ -1327,20 +1352,24 @@
         // 根据工号更新用户发布内容中的管理员状态  
         function updateUserContentAdminStatusByEmployeeId(employeeId, isAdmin) {  
             // 更新帖子  
-            database.ref('posts').orderByChild('author_employee_id').equalTo(employeeId).once('value')  
-                .then((snapshot) => {  
-                    snapshot.forEach((childSnapshot) => {  
-                        childSnapshot.ref.update({ is_admin: isAdmin });  
-                    });  
+            window.dbGet(window.dbRef(window.database, 'posts')).then((snapshot) => {  
+                snapshot.forEach((childSnapshot) => {  
+                    const post = childSnapshot.val();  
+                    if (post.author_employee_id === employeeId) {  
+                        window.dbUpdate(window.dbRef(window.database, `posts/${childSnapshot.key}`), { is_admin: isAdmin });  
+                    }  
                 });  
+            });  
             
             // 更新回复  
-            database.ref('replies').orderByChild('author_employee_id').equalTo(employeeId).once('value')  
-                .then((snapshot) => {  
-                    snapshot.forEach((childSnapshot) => {  
-                        childSnapshot.ref.update({ is_admin: isAdmin });  
-                    });  
+            window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
+                snapshot.forEach((childSnapshot) => {  
+                    const reply = childSnapshot.val();  
+                    if (reply.author_employee_id === employeeId) {  
+                        window.dbUpdate(window.dbRef(window.database, `replies/${childSnapshot.key}`), { is_admin: isAdmin });  
+                    }  
                 });  
+            });  
         }  
 
         // 显示主要UI  
@@ -1382,13 +1411,13 @@
             postsInitialized = true;  
             
             // 监听帖子变化  
-            database.ref('posts').on('value', (snapshot) => {  
+            window.dbOnValue(window.dbRef(window.database, 'posts'), (snapshot) => {  
                 console.log('收到帖子更新');  
                 renderPosts(snapshot);  
             });  
             
             // 监听回复变化  
-            database.ref('replies').on('value', (snapshot) => {  
+            window.dbOnValue(window.dbRef(window.database, 'replies'), (snapshot) => {  
                 console.log('收到回复更新');  
                 updateAllReplies(snapshot);  
             });  
@@ -1439,8 +1468,8 @@
             });  
         }  
 
-        // 增强版图片上传函数  
-        async function uploadImageToImgBB(file) {  
+        // 直接转换图片为Base64  
+        async function uploadImageToBase64(file) {  
             try {  
                 // 直接使用Base64编码方式存储图片，提高兼容性  
                 return new Promise((resolve) => {  
@@ -1493,7 +1522,7 @@
                 // 如果有图片，处理并上传  
                 if (imageFile) {  
                     const compressedFile = await compressImage(imageFile);  
-                    imageUrl = await uploadImageToImgBB(compressedFile);  
+                    imageUrl = await uploadImageToBase64(compressedFile);  
                 }  
                 
                 // 创建帖子对象  
@@ -1513,7 +1542,7 @@
                 };  
                 
                 // 保存到Firebase  
-                await database.ref('posts/' + postId).set(newPost);  
+                await window.dbSet(window.dbRef(window.database, 'posts/' + postId), newPost);  
                 
                 contentElem.value = '';  
                 imageElem.value = '';  
@@ -1571,7 +1600,7 @@
                 attachPostEvents();  
                 
                 // 更新所有回复状态  
-                database.ref('replies').once('value').then(updateAllReplies);  
+                window.dbGet(window.dbRef(window.database, 'replies')).then(updateAllReplies);  
                 
             } catch (error) {  
                 console.error('渲染帖子出错:', error);  
@@ -1668,8 +1697,10 @@
                     const postId = postElement.dataset.id;  
                     
                     // 更新Firebase中的点赞数  
-                    database.ref(`posts/${postId}/likes`).transaction((likes) => {  
-                        return (likes || 0) + 1;  
+                    const likesRef = window.dbRef(window.database, `posts/${postId}/likes`);  
+                    window.dbGet(likesRef).then((snapshot) => {  
+                        const currentLikes = snapshot.exists() ? snapshot.val() : 0;  
+                        window.dbSet(likesRef, currentLikes + 1);  
                     });  
                 });  
             });  
@@ -1684,14 +1715,17 @@
                     
                     if (confirm('确定要删除这条帖子吗？')) {  
                         // 从Firebase删除帖子  
-                        database.ref(`posts/${postId}`).remove()  
+                        window.dbRemove(window.dbRef(window.database, `posts/${postId}`))  
                             .then(() => {  
                                 showToast('删除成功');  
                                 
                                 // 同时删除所有相关回复  
-                                database.ref('replies').orderByChild('post_id').equalTo(postId).once('value', (snapshot) => {  
+                                window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
                                     snapshot.forEach((childSnapshot) => {  
-                                        childSnapshot.ref.remove();  
+                                        const reply = childSnapshot.val();  
+                                        if (reply.post_id === postId) {  
+                                            window.dbRemove(window.dbRef(window.database, `replies/${childSnapshot.key}`));  
+                                        }  
                                     });  
                                 });  
                             })  
@@ -1712,7 +1746,7 @@
                     const postId = postElement.dataset.id;  
                     
                     // 更新Firebase中的置顶状态  
-                    database.ref(`posts/${postId}/is_pinned`).set(true)  
+                    window.dbSet(window.dbRef(window.database, `posts/${postId}/is_pinned`), true)  
                         .then(() => {  
                             showToast('帖子已置顶');  
                         })  
@@ -1732,7 +1766,7 @@
                     const postId = postElement.dataset.id;  
                     
                     // 更新Firebase中的置顶状态  
-                    database.ref(`posts/${postId}/is_pinned`).set(false)  
+                    window.dbSet(window.dbRef(window.database, `posts/${postId}/is_pinned`), false)  
                         .then(() => {  
                             showToast('已取消置顶');  
                         })  
@@ -1795,7 +1829,7 @@
                     };  
                     
                     // 保存到Firebase  
-                    database.ref('replies/' + replyId).set(newReply)  
+                    window.dbSet(window.dbRef(window.database, 'replies/' + replyId), newReply)  
                         .then(() => {  
                             replyInput.value = '';  
                             showToast('回复成功');  
@@ -1812,10 +1846,13 @@
         function loadRepliesForPost(postId) {  
             const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);  
             
-            database.ref('replies').orderByChild('post_id').equalTo(postId).once('value', (snapshot) => {  
+            window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
                 const replies = [];  
                 snapshot.forEach((childSnapshot) => {  
-                    replies.push(childSnapshot.val());  
+                    const reply = childSnapshot.val();  
+                    if (reply.post_id === postId) {  
+                        replies.push(reply);  
+                    }  
                 });  
                 
                 // 按创建时间排序  
@@ -1924,7 +1961,7 @@
                     
                     if (confirm('确定要删除这条回复吗？')) {  
                         // 从Firebase删除回复  
-                        database.ref(`replies/${replyId}`).remove()  
+                        window.dbRemove(window.dbRef(window.database, `replies/${replyId}`))  
                             .then(() => {  
                                 showToast('删除回复成功');  
                             })  
@@ -1946,7 +1983,7 @@
             try {  
                 const file = document.getElementById('avatarInput').files[0];  
                 const compressedFile = await compressImage(file);  
-                const avatarUrl = await uploadImageToImgBB(compressedFile);  
+                const avatarUrl = await uploadImageToBase64(compressedFile);  
                 
                 if (!avatarUrl) {  
                     showToast('头像上传失败', false);  
@@ -1954,7 +1991,7 @@
                 }  
                 
                 // 更新用户数据中的头像  
-                await database.ref(`users/${currentUser.employee_id}`).update({  
+                await window.dbUpdate(window.dbRef(window.database, `users/${currentUser.employee_id}`), {  
                     avatar_url: avatarUrl  
                 });  
                 
@@ -1984,13 +2021,15 @@
             if (!currentUser) return;  
             
             // 获取该用户的所有帖子  
-            database.ref('posts').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')  
-                .then((snapshot) => {  
-                    snapshot.forEach((childSnapshot) => {  
+            window.dbGet(window.dbRef(window.database, 'posts')).then((snapshot) => {  
+                snapshot.forEach((childSnapshot) => {  
+                    const post = childSnapshot.val();  
+                    if (post.author_employee_id === currentUser.employee_id) {  
                         // 更新每个帖子的作者头像  
-                        childSnapshot.ref.update({ author_avatar: newAvatarUrl });  
-                    });  
+                        window.dbUpdate(window.dbRef(window.database, `posts/${childSnapshot.key}`), { author_avatar: newAvatarUrl });  
+                    }  
                 });  
+            });  
         }  
         
         // 更新用户所有回复中的头像  
@@ -1998,13 +2037,15 @@
             if (!currentUser) return;  
             
             // 获取该用户的所有回复  
-            database.ref('replies').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')  
-                .then((snapshot) => {  
-                    snapshot.forEach((childSnapshot) => {  
+            window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
+                snapshot.forEach((childSnapshot) => {  
+                    const reply = childSnapshot.val();  
+                    if (reply.author_employee_id === currentUser.employee_id) {  
                         // 更新每个回复的作者头像  
-                        childSnapshot.ref.update({ author_avatar: newAvatarUrl });  
-                    });  
+                        window.dbUpdate(window.dbRef(window.database, `replies/${childSnapshot.key}`), { author_avatar: newAvatarUrl });  
+                    }  
                 });  
+            });  
         }  
         
         // 更新用户所有帖子中的姓名  
@@ -2012,13 +2053,15 @@
             if (!currentUser) return;  
             
             // 获取该用户的所有帖子  
-            database.ref('posts').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')  
-                .then((snapshot) => {  
-                    snapshot.forEach((childSnapshot) => {  
+            window.dbGet(window.dbRef(window.database, 'posts')).then((snapshot) => {  
+                snapshot.forEach((childSnapshot) => {  
+                    const post = childSnapshot.val();  
+                    if (post.author_employee_id === currentUser.employee_id) {  
                         // 更新每个帖子的作者姓名  
-                        childSnapshot.ref.update({ author_name: newName });  
-                    });  
+                        window.dbUpdate(window.dbRef(window.database, `posts/${childSnapshot.key}`), { author_name: newName });  
+                    }  
                 });  
+            });  
         }  
         
         // 更新用户所有回复中的姓名  
@@ -2026,18 +2069,20 @@
             if (!currentUser) return;  
             
             // 获取该用户的所有回复  
-            database.ref('replies').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')  
-                .then((snapshot) => {  
-                    snapshot.forEach((childSnapshot) => {  
+            window.dbGet(window.dbRef(window.database, 'replies')).then((snapshot) => {  
+                snapshot.forEach((childSnapshot) => {  
+                    const reply = childSnapshot.val();  
+                    if (reply.author_employee_id === currentUser.employee_id) {  
                         // 更新每个回复的作者姓名  
-                        childSnapshot.ref.update({ author_name: newName });  
-                    });  
+                        window.dbUpdate(window.dbRef(window.database, `replies/${childSnapshot.key}`), { author_name: newName });  
+                    }  
                 });  
+            });  
         }  
 
         // 添加初始帖子（如果Firebase为空）  
         function addInitialPostsIfNeeded() {  
-            database.ref('posts').once('value').then((snapshot) => {  
+            window.dbGet(window.dbRef(window.database, 'posts')).then((snapshot) => {  
                 if (!snapshot.exists()) {  
                     console.log('数据库为空，添加初始帖子');  
                     // 数据库为空，添加初始帖子  
@@ -2068,11 +2113,11 @@
                         }  
                     };  
                     
-                    database.ref('posts').set(initialPosts);  
+                    window.dbSet(window.dbRef(window.database, 'posts'), initialPosts);  
                 }  
             });  
         }  
     </script>  
 </body>  
 </html>  
-                            
+                                
