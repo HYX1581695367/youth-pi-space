@@ -1196,4 +1196,1223 @@
                     id: userId,  
                     name: name,  
                     employee_id: employeeId,  
+                    password_hash: passwordHash,
+                    avatar_url: avatarUrl,
+                    is_admin: false,
+                    is_system_admin: false,
+                    points: 0,
+                    check_in_streak: 0,
+                    last_check_in_date: null,
+                    created_at: new Date().toISOString()
+                };
+                
+                await database.ref(`users/${employeeId}`).set(newUser);
+                
+                document.getElementById('registerName').value = '';
+                document.getElementById('registerEmployeeId').value = '';
+                document.getElementById('registerPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+                document.getElementById('registerAvatar').value = '';
+                
+                showToast('注册成功，请登录');
+                
+                document.getElementById('registerContainer').classList.add('hidden');
+                document.getElementById('loginContainer').classList.remove('hidden');
+            } catch (error) {
+                console.error('注册失败:', error);
+                showToast('注册失败: ' + error.message, false);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('userSession');
+            currentUser = null;
+            isAdmin = false;
+            isSystemAdmin = false;
+            
+            postsInitialized = false;
+            
+            database.ref('posts').off();
+            database.ref('replies').off();
+            database.ref('users').off();
+            
+            document.getElementById('loginContainer').classList.remove('hidden');
+            document.getElementById('mainContainer').classList.add('hidden');
+            document.getElementById('adminPanelContainer').classList.add('hidden');
+            document.getElementById('userInfoContainer').classList.add('hidden');
+            document.getElementById('userManagementContainer').classList.add('hidden');
+            document.getElementById('userNav').classList.add('hidden');
+            
+            showToast('已退出登录');
+        }
+        
+        // 显示编辑个人信息表单
+        function showEditProfileForm() {
+            if (!currentUser) return;
+            
+            document.getElementById('mainContainer').classList.add('hidden');
+            document.getElementById('userInfoContainer').classList.remove('hidden');
+            
+            document.getElementById('userName').value = currentUser.name;
+        }
+        
+        // 隐藏编辑个人信息表单
+        function hideEditProfileForm() {
+            document.getElementById('userInfoContainer').classList.add('hidden');
+            document.getElementById('mainContainer').classList.remove('hidden');
+        }
+        
+        // 更新用户信息
+        async function updateUserInfo() {
+            if (!currentUser) return;
+            
+            const name = document.getElementById('userName').value.trim();
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+            const avatarFile = document.getElementById('userAvatar').files[0];
+            
+            if (!name) {
+                showToast('姓名不能为空', false);
+                return;
+            }
+            
+            if (newPassword) {
+                if (newPassword.length < 6) {
+                    showToast('密码长度至少6位', false);
+                    return;
+                }
+                
+                if (newPassword !== confirmNewPassword) {
+                    showToast('两次输入的密码不一致', false);
+                    return;
+                }
+            }
+            
+            showLoading(true);
+            
+            try {
+                const updates = {
+                    name: name
+                };
+                
+                if (newPassword) {
+                    updates.password_hash = hashPassword(newPassword);
+                }
+                
+                if (avatarFile) {
+                    const compressedFile = await compressImage(avatarFile);
+                    const avatarUrl = await uploadImageToImgBB(compressedFile);
+                    if (avatarUrl) {
+                        updates.avatar_url = avatarUrl;
+                    }
+                }
+                
+                await database.ref(`users/${currentUser.employee_id}`).update(updates);
+                
+                Object.assign(currentUser, updates);
+                
+                if (avatarFile && updates.avatar_url) {
+                    updatePostsWithNewAvatar(updates.avatar_url);
+                    updateRepliesWithNewAvatar(updates.avatar_url);
+                }
+                
+                if (name !== currentUser.name) {
+                    updatePostsWithNewName(name);
+                    updateRepliesWithNewName(name);
+                }
+                
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmNewPassword').value = '';
+                document.getElementById('userAvatar').value = '';
+                
+                hideEditProfileForm();
+                showMainUI();
+                showToast('个人信息更新成功');
+            } catch (error) {
+                console.error('更新失败:', error);
+                showToast('更新失败: ' + error.message, false);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 初始化管理员列表
+        function initializeAdminList() {
+            database.ref('admins').once('value').then((snapshot) => {
+                if (!snapshot.exists()) {
+                    const defaultAdmins = {
+                        'admin001': true
+                    };
+                    database.ref('admins').set(defaultAdmins);
+                }
+                
+                database.ref('admins').on('value', (snapshot) => {
+                    updateAdminList(snapshot);
                     
+                    if (currentUser) {
+                        checkAndUpdateAdminStatus();
+                    }
+                });
+            });
+        }
+        
+        // 更新管理员列表UI
+        function updateAdminList(snapshot) {
+            const adminList = document.getElementById('adminList');
+            adminList.innerHTML = '';
+            
+            if (!snapshot.exists()) {
+                adminList.innerHTML = '<p class="text-gray-500 text-center">暂无管理员</p>';
+                return;
+            }
+            
+            const admins = [];
+            snapshot.forEach((childSnapshot) => {
+                admins.push(childSnapshot.key);
+            });
+            
+            if (admins.length === 0) {
+                adminList.innerHTML = '<p class="text-gray-500 text-center">暂无管理员</p>';
+                return;
+            }
+            
+            admins.sort();
+            
+            const template = document.getElementById('adminItemTemplate');
+            
+            admins.forEach(adminId => {
+                const adminElement = template.content.cloneNode(true).querySelector('.admin-item');
+                adminElement.querySelector('.admin-id').textContent = adminId;
+                
+                if (adminId === 'admin001') {
+                    adminElement.querySelector('.remove-admin-btn').textContent = '系统管理员';
+                    adminElement.querySelector('.remove-admin-btn').disabled = true;
+                    adminElement.querySelector('.remove-admin-btn').classList.add('text-gray-400');
+                    adminElement.querySelector('.remove-admin-btn').classList.remove('text-red-500', 'hover:text-red-700');
+                } else {
+                    adminElement.querySelector('.remove-admin-btn').addEventListener('click', () => {
+                        removeAdmin(adminId);
+                    });
+                }
+                
+                adminList.appendChild(adminElement);
+            });
+        }
+        
+        // 添加新管理员
+        function addNewAdmin() {
+            if (!isAdmin) {
+                showToast('只有管理员可以添加其他管理员', false);
+                return;
+            }
+            
+            if (!isSystemAdmin) {
+                showToast('只有系统管理员可以添加其他管理员', false);
+                return;
+            }
+            
+            const newAdminId = document.getElementById('newAdminId').value.trim();
+            if (!newAdminId) {
+                showToast('请输入工号', false);
+                return;
+            }
+            
+            database.ref(`admins/${newAdminId}`).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    showToast('该工号已经是管理员', false);
+                    return;
+                }
+                
+                database.ref(`users/${newAdminId}`).once('value').then((userSnapshot) => {
+                    if (!userSnapshot.exists()) {
+                        showToast('该工号尚未注册', false);
+                        return;
+                    }
+                    
+                    database.ref(`admins/${newAdminId}`).set(true)
+                        .then(() => {
+                            document.getElementById('newAdminId').value = '';
+                            showToast(`已将工号 ${newAdminId} 设为管理员`);
+                            
+                            database.ref(`users/${newAdminId}`).update({ is_admin: true });
+                            updateUserContentAdminStatusByEmployeeId(newAdminId, true);
+                        })
+                        .catch(error => {
+                            console.error('添加管理员失败:', error);
+                            showToast('添加管理员失败: ' + error.message, false);
+                        });
+                });
+            });
+        }
+        
+        // 移除管理员
+        function removeAdmin(adminId) {
+            if (!isAdmin) {
+                showToast('只有管理员可以移除其他管理员', false);
+                return;
+            }
+            
+            if (!isSystemAdmin) {
+                showToast('只有系统管理员可以移除其他管理员', false);
+                return;
+            }
+            
+            if (adminId === 'admin001') {
+                showToast('系统管理员不能被移除', false);
+                return;
+            }
+            
+            database.ref(`admins/${adminId}`).remove()
+                .then(() => {
+                    showToast(`已移除管理员 ${adminId}`);
+                    
+                    database.ref(`users/${adminId}`).update({ is_admin: false });
+                    updateUserContentAdminStatusByEmployeeId(adminId, false);
+                })
+                .catch(error => {
+                    console.error('移除管理员失败:', error);
+                    showToast('移除管理员失败: ' + error.message, false);
+                });
+        }
+        
+        // 显示管理员面板
+        function showAdminPanel() {
+            if (!isAdmin) {
+                showToast('只有管理员可以访问设置', false);
+                return;
+            }
+            
+            document.getElementById('mainContainer').classList.add('hidden');
+            document.getElementById('adminPanelContainer').classList.remove('hidden');
+            
+            database.ref('admins').once('value').then(updateAdminList);
+        }
+        
+        // 隐藏管理员面板
+        function hideAdminPanel() {
+            document.getElementById('adminPanelContainer').classList.add('hidden');
+            document.getElementById('mainContainer').classList.remove('hidden');
+        }
+        
+        // 显示用户管理面板
+        function showUserManagement() {
+            if (!isSystemAdmin) {
+                showToast('只有系统管理员可以访问用户管理', false);
+                return;
+            }
+            
+            document.getElementById('mainContainer').classList.add('hidden');
+            document.getElementById('userManagementContainer').classList.remove('hidden');
+            
+            loadAllUsers();
+        }
+        
+        // 隐藏用户管理面板
+        function hideUserManagement() {
+            document.getElementById('userManagementContainer').classList.add('hidden');
+            document.getElementById('mainContainer').classList.remove('hidden');
+        }
+        
+        // 加载所有用户数据
+        function loadAllUsers() {
+            showLoading(true);
+            
+            database.ref('users').once('value').then((snapshot) => {
+                const userTable = document.getElementById('userTable');
+                userTable.innerHTML = '';
+                
+                if (!snapshot.exists()) {
+                    userTable.innerHTML = '<tr><td colspan="7" class="py-2 px-4 text-center">暂无用户数据</td></tr>';
+                    showLoading(false);
+                    return;
+                }
+                
+                const users = [];
+                snapshot.forEach((childSnapshot) => {
+                    users.push(childSnapshot.val());
+                });
+                
+                users.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    
+                    const idCell = document.createElement('td');
+                    idCell.className = 'py-2 px-4 border-b border-gray-200';
+                    idCell.textContent = user.employee_id;
+                    row.appendChild(idCell);
+                    
+                    const nameCell = document.createElement('td');
+                    nameCell.className = 'py-2 px-4 border-b border-gray-200';
+                    nameCell.textContent = user.name;
+                    row.appendChild(nameCell);
+                    
+                    // 积分列
+                    const pointsCell = document.createElement('td');
+                    pointsCell.className = 'py-2 px-4 border-b border-gray-200 font-bold text-yellow-600';
+                    pointsCell.textContent = user.points || 0;
+                    row.appendChild(pointsCell);
+                    
+                    // 连续签到列
+                    const streakCell = document.createElement('td');
+                    streakCell.className = 'py-2 px-4 border-b border-gray-200';
+                    streakCell.innerHTML = `<span class="text-orange-600">🔥 ${user.check_in_streak || 0} 天</span>`;
+                    row.appendChild(streakCell);
+                    
+                    const timeCell = document.createElement('td');
+                    timeCell.className = 'py-2 px-4 border-b border-gray-200';
+                    timeCell.textContent = new Date(user.created_at).toLocaleString();
+                    row.appendChild(timeCell);
+                    
+                    const adminCell = document.createElement('td');
+                    adminCell.className = 'py-2 px-4 border-b border-gray-200';
+                    if (user.is_system_admin) {
+                        adminCell.innerHTML = '<span class="bg-purple-500 text-white px-2 py-0.5 rounded">系统管理员</span>';
+                    } else if (user.is_admin) {
+                        adminCell.innerHTML = '<span class="bg-red-500 text-white px-2 py-0.5 rounded">管理员</span>';
+                    } else {
+                        adminCell.textContent = '普通用户';
+                    }
+                    row.appendChild(adminCell);
+                    
+                    const actionCell = document.createElement('td');
+                    actionCell.className = 'py-2 px-4 border-b border-gray-200';
+                    
+                    if (!user.is_system_admin) {
+                        const adminBtn = document.createElement('button');
+                        adminBtn.className = user.is_admin 
+                            ? 'mr-2 px-2 py-1 bg-yellow-500 text-white rounded text-xs'
+                            : 'mr-2 px-2 py-1 bg-green-500 text-white rounded text-xs';
+                        adminBtn.textContent = user.is_admin ? '移除管理员' : '设为管理员';
+                        adminBtn.addEventListener('click', () => {
+                            if (user.is_admin) {
+                                removeAdmin(user.employee_id);
+                                setTimeout(() => loadAllUsers(), 500);
+                            } else {
+                                addAdminFromUserManagement(user.employee_id);
+                                setTimeout(() => loadAllUsers(), 500);
+                            }
+                        });
+                        actionCell.appendChild(adminBtn);
+                        
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'px-2 py-1 bg-red-500 text-white rounded text-xs';
+                        deleteBtn.textContent = '删除';
+                        deleteBtn.addEventListener('click', () => {
+                            if (confirm(`确定要删除用户 ${user.name} (${user.employee_id}) 吗？`)) {
+                                deleteUser(user.employee_id);
+                            }
+                        });
+                        actionCell.appendChild(deleteBtn);
+                    } else {
+                        actionCell.textContent = '系统管理员不可修改';
+                    }
+                    
+                    row.appendChild(actionCell);
+                    
+                    userTable.appendChild(row);
+                });
+                
+                showLoading(false);
+            }).catch(error => {
+                console.error('加载用户数据失败:', error);
+                showToast('加载用户数据失败', false);
+                showLoading(false);
+            });
+        }
+        
+        // 从用户管理界面添加管理员
+        function addAdminFromUserManagement(employeeId) {
+            if (!isSystemAdmin) {
+                showToast('只有系统管理员可以添加其他管理员', false);
+                return;
+            }
+            
+            database.ref(`admins/${employeeId}`).set(true)
+                .then(() => {
+                    showToast(`已将工号 ${employeeId} 设为管理员`);
+                    
+                    database.ref(`users/${employeeId}`).update({ is_admin: true });
+                    updateUserContentAdminStatusByEmployeeId(employeeId, true);
+                    
+                    loadAllUsers();
+                })
+                .catch(error => {
+                    console.error('添加管理员失败:', error);
+                    showToast('添加管理员失败: ' + error.message, false);
+                });
+        }
+        
+        // 删除用户
+        function deleteUser(employeeId) {
+            if (!isSystemAdmin) {
+                showToast('只有系统管理员可以删除用户', false);
+                return;
+            }
+            
+            showLoading(true);
+            
+            database.ref(`admins/${employeeId}`).remove()
+                .then(() => {
+                    return database.ref('posts').orderByChild('author_employee_id').equalTo(employeeId).once('value');
+                })
+                .then((snapshot) => {
+                    const promises = [];
+                    snapshot.forEach((childSnapshot) => {
+                        promises.push(database.ref(`posts/${childSnapshot.key}`).remove());
+                    });
+                    return Promise.all(promises);
+                })
+                .then(() => {
+                    return database.ref('replies').orderByChild('author_employee_id').equalTo(employeeId).once('value');
+                })
+                .then((snapshot) => {
+                    const promises = [];
+                    snapshot.forEach((childSnapshot) => {
+                        promises.push(database.ref(`replies/${childSnapshot.key}`).remove());
+                    });
+                    return Promise.all(promises);
+                })
+                .then(() => {
+                    return database.ref(`users/${employeeId}`).remove();
+                })
+                .then(() => {
+                    showToast(`用户 ${employeeId} 删除成功`);
+                    loadAllUsers();
+                })
+                .catch(error => {
+                    console.error('删除用户失败:', error);
+                    showToast('删除用户失败: ' + error.message, false);
+                })
+                .finally(() => {
+                    showLoading(false);
+                });
+        }
+        
+        // 检查并更新当前用户的管理员状态
+        function checkAndUpdateAdminStatus() {
+            if (!currentUser) return;
+            
+            if (currentUser.employee_id === 'admin001' || currentUser.is_system_admin) {
+                isAdmin = true;
+                isSystemAdmin = true;
+                updateAdminUI();
+                return;
+            }
+            
+            database.ref(`admins/${currentUser.employee_id}`).once('value').then((snapshot) => {
+                isAdmin = snapshot.exists();
+                isSystemAdmin = false;
+                
+                updateAdminUI();
+                
+                if (isAdmin !== currentUser.is_admin) {
+                    updateUserContentAdminStatus();
+                    currentUser.is_admin = isAdmin;
+                }
+            });
+        }
+        
+        // 更新管理员UI显示
+        function updateAdminUI() {
+            document.getElementById('adminPanelBtn').classList.toggle('hidden', !isAdmin);
+            document.getElementById('adminBadge').classList.toggle('hidden', !isAdmin);
+            document.getElementById('systemAdminBadge').classList.toggle('hidden', !isSystemAdmin);
+            document.getElementById('userManagementBtn').classList.toggle('hidden', !isSystemAdmin);
+        }
+        
+        // 更新用户发布内容中的管理员状态
+        function updateUserContentAdminStatus() {
+            if (!currentUser) return;
+            
+            updateUserContentAdminStatusByEmployeeId(currentUser.employee_id, isAdmin);
+        }
+        
+        // 根据工号更新用户发布内容中的管理员状态
+        function updateUserContentAdminStatusByEmployeeId(employeeId, isAdmin) {
+            database.ref('posts').orderByChild('author_employee_id').equalTo(employeeId).once('value')
+                .then((snapshot) => {
+                    snapshot.forEach((childSnapshot) => {
+                        childSnapshot.ref.update({ is_admin: isAdmin });
+                    });
+                });
+            
+            database.ref('replies').orderByChild('author_employee_id').equalTo(employeeId).once('value')
+                .then((snapshot) => {
+                    snapshot.forEach((childSnapshot) => {
+                        childSnapshot.ref.update({ is_admin: isAdmin });
+                    });
+                });
+        }
+
+        // 显示主要UI
+        function showMainUI() {
+            document.getElementById('loginContainer').classList.add('hidden');
+            document.getElementById('registerContainer').classList.add('hidden');
+            document.getElementById('userInfoContainer').classList.add('hidden');
+            document.getElementById('adminPanelContainer').classList.add('hidden');
+            document.getElementById('userManagementContainer').classList.add('hidden');
+            document.getElementById('mainContainer').classList.remove('hidden');
+            document.getElementById('userNav').classList.remove('hidden');
+            
+            document.getElementById('navUserName').textContent = currentUser.name;
+            if (currentUser.avatar_url) {
+                document.getElementById('navUserAvatar').src = currentUser.avatar_url;
+            }
+            
+            document.getElementById('profileName').textContent = currentUser.name;
+            document.getElementById('profileEmployeeId').textContent = currentUser.employee_id;
+            if (currentUser.avatar_url) {
+                document.getElementById('profileAvatar').src = currentUser.avatar_url;
+            }
+            
+            // 更新积分显示
+            updatePointsUI();
+            
+            updateAdminUI();
+        }
+
+        // 生成唯一ID
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // 设置实时监听
+        function setupRealTimeListeners() {
+            if (postsInitialized) return;
+            
+            postsInitialized = true;
+            
+            database.ref('posts').on('value', (snapshot) => {
+                console.log('收到帖子更新');
+                renderPosts(snapshot);
+            });
+            
+            database.ref('replies').on('value', (snapshot) => {
+                console.log('收到回复更新');
+                updateAllReplies(snapshot);
+            });
+        }
+
+        // 图片压缩功能
+        function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        
+                        let width = img.width;
+                        let height = img.height;
+                        const maxSize = 800;
+                        
+                        if (width > height && width > maxSize) {
+                            height = Math.round(height * maxSize / width);
+                            width = maxSize;
+                        } else if (height > maxSize) {
+                            width = Math.round(width * maxSize / height);
+                            height = maxSize;
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        canvas.toBlob(function(blob) {
+                            resolve(new File([blob], file.name || 'image.jpg', {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            }));
+                        }, 'image/jpeg', 0.7);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 增强版图片上传函数
+        async function uploadImageToImgBB(file) {
+            try {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const result = reader.result;
+                        if (typeof result === 'string' && result.startsWith('data:')) {
+                            console.log("成功生成图片数据URL");
+                            resolve(result);
+                        } else {
+                            console.error('图片编码异常');
+                            resolve(null);
+                        }
+                    };
+                    reader.onerror = () => {
+                        console.error('读取文件失败');
+                        resolve(null);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            } catch (error) {
+                console.error('图片处理错误:', error);
+                return null;
+            }
+        }
+
+        // 创建帖子
+        async function createPost(section) {
+            if (!currentUser) {
+                showToast('请先登录', false);
+                return;
+            }
+            
+            const contentElem = document.getElementById(`${section}PostContent`);
+            const imageElem = document.getElementById(`${section}PostImage`);
+            const content = contentElem.value.trim();
+            const imageFile = imageElem.files[0];
+            
+            if (!content) {
+                showToast('请输入内容', false);
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                let imageUrl = null;
+                
+                if (imageFile) {
+                    const compressedFile = await compressImage(imageFile);
+                    imageUrl = await uploadImageToImgBB(compressedFile);
+                }
+                
+                const postId = generateId();
+                const newPost = {
+                    id: postId,
+                    author_name: currentUser.name,
+                    author_employee_id: currentUser.employee_id,
+                    author_avatar: currentUser.avatar_url,
+                    content: content,
+                    image_url: imageUrl,
+                    section: section,
+                    is_admin: isAdmin,
+                    is_pinned: false,
+                    likes: 0,
+                    created_at: new Date().toISOString()
+                };
+                
+                await database.ref('posts/' + postId).set(newPost);
+                
+                // 发帖增加10分
+                await addUserPoints(currentUser.employee_id, 10, '发帖');
+                
+                contentElem.value = '';
+                imageElem.value = '';
+                showToast('发布成功，获得10积分！');
+            } catch (error) {
+                console.error('发布失败:', error);
+                showToast('发布失败: ' + error.message, false);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // 渲染帖子
+        function renderPosts(snapshot) {
+            showLoading(true);
+            
+            try {
+                document.getElementById('techPosts').innerHTML = '';
+                document.getElementById('dailyPosts').innerHTML = '';
+                document.getElementById('userPosts').innerHTML = '';
+                
+                const posts = [];
+                snapshot.forEach((childSnapshot) => {
+                    posts.push(childSnapshot.val());
+                });
+                
+                posts.sort((a, b) => {
+                    if (a.is_pinned && !b.is_pinned) return -1;
+                    if (!a.is_pinned && b.is_pinned) return 1;
+                    return new Date(b.created_at) - new Date(a.created_at);
+                });
+                
+                posts.forEach(post => {
+                    const postElement = createPostElement(post);
+                    
+                    if (post.section === 'tech') {
+                        document.getElementById('techPosts').appendChild(postElement.cloneNode(true));
+                    } else if (post.section === 'daily') {
+                        document.getElementById('dailyPosts').appendChild(postElement.cloneNode(true));
+                    }
+                    
+                    if (currentUser && post.author_employee_id === currentUser.employee_id) {
+                        document.getElementById('userPosts').appendChild(postElement);
+                    }
+                });
+                
+                attachPostEvents();
+                
+                database.ref('replies').once('value').then(updateAllReplies);
+                
+            } catch (error) {
+                console.error('渲染帖子出错:', error);
+                showToast('加载帖子出错', false);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 创建帖子DOM元素
+        function createPostElement(post) {
+            const template = document.getElementById('postTemplate');
+            const postElement = template.content.cloneNode(true).querySelector('.post');
+            
+            postElement.dataset.id = post.id;
+            
+            const avatarElem = postElement.querySelector('.post-avatar');
+            if (post.author_avatar) {
+                avatarElem.src = post.author_avatar;
+            }
+            
+            postElement.querySelector('.post-author').textContent = post.author_name;
+            
+            if (post.is_admin) {
+                postElement.querySelector('.post-admin-badge').classList.remove('hidden');
+            }
+            
+            if (post.is_pinned) {
+                postElement.querySelector('.post-pinned-badge').classList.remove('hidden');
+            }
+            
+            const date = new Date(post.created_at);
+            postElement.querySelector('.post-time').textContent = date.toLocaleString();
+            
+            postElement.querySelector('.post-content').textContent = post.content;
+            
+            if (post.image_url) {
+                const imageContainer = postElement.querySelector('.post-image-container');
+                const imageElem = postElement.querySelector('.post-image');
+                
+                imageContainer.classList.remove('hidden');
+                imageElem.src = post.image_url;
+                
+                imageElem.addEventListener('error', function() {
+                    console.error('图片加载失败，尝试重新加载', post.image_url);
+                    setTimeout(() => {
+                        imageElem.src = post.image_url.includes('?') 
+                            ? post.image_url + '&t=' + new Date().getTime() 
+                            : post.image_url + '?t=' + new Date().getTime();
+                    }, 500);
+                });
+            }
+            
+            postElement.querySelector('.like-count').textContent = post.likes || 0;
+            
+            if (currentUser && (post.author_employee_id === currentUser.employee_id || isAdmin)) {
+                postElement.querySelector('.delete-btn').classList.remove('hidden');
+            }
+            
+            if (isAdmin) {
+                if (post.is_pinned) {
+                    postElement.querySelector('.unpin-btn').classList.remove('hidden');
+                } else {
+                    postElement.querySelector('.pin-btn').classList.remove('hidden');
+                }
+            }
+            
+            return postElement;
+        }
+
+        // 附加帖子事件
+        function attachPostEvents() {
+            // 点赞事件
+            document.querySelectorAll('.like-btn').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    if (!currentUser) return;
+                    
+                    const postElement = event.currentTarget.closest('.post');
+                    const postId = postElement.dataset.id;
+                    
+                    database.ref(`posts/${postId}/likes`).transaction((likes) => {
+                        return (likes || 0) + 1;
+                    });
+                });
+            });
+            
+            // 删除事件
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    if (!currentUser) return;
+                    
+                    const postElement = event.currentTarget.closest('.post');
+                    const postId = postElement.dataset.id;
+                    
+                    if (confirm('确定要删除这条帖子吗？')) {
+                        database.ref(`posts/${postId}`).remove()
+                            .then(() => {
+                                showToast('删除成功');
+                                
+                                database.ref('replies').orderByChild('post_id').equalTo(postId).once('value', (snapshot) => {
+                                    snapshot.forEach((childSnapshot) => {
+                                        childSnapshot.ref.remove();
+                                    });
+                                });
+                            })
+                            .catch(error => {
+                                console.error('删除失败:', error);
+                                showToast('删除失败', false);
+                            });
+                    }
+                });
+            });
+            
+            // 置顶事件
+            document.querySelectorAll('.pin-btn').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    if (!isAdmin) return;
+                    
+                    const postElement = event.currentTarget.closest('.post');
+                    const postId = postElement.dataset.id;
+                    
+                    database.ref(`posts/${postId}`).once('value').then((snapshot) => {
+                        if (snapshot.exists()) {
+                            const post = snapshot.val();
+                            
+                            database.ref(`posts/${postId}/is_pinned`).set(true)
+                                .then(async () => {
+                                    await addUserPoints(post.author_employee_id, 5, '帖子被置顶');
+                                    showToast('帖子已置顶，作者获得5积分奖励！');
+                                })
+                                .catch(error => {
+                                    console.error('置顶失败:', error);
+                                    showToast('置顶失败', false);
+                                });
+                        }
+                    });
+                });
+            });
+            
+            // 取消置顶事件
+            document.querySelectorAll('.unpin-btn').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    if (!isAdmin) return;
+                    
+                    const postElement = event.currentTarget.closest('.post');
+                    const postId = postElement.dataset.id;
+                    
+                    database.ref(`posts/${postId}/is_pinned`).set(false)
+                        .then(() => {
+                            showToast('已取消置顶');
+                        })
+                        .catch(error => {
+                            console.error('取消置顶失败:', error);
+                            showToast('取消置顶失败', false);
+                        });
+                });
+            });
+            
+            // 回复按钮事件
+            document.querySelectorAll('.reply-btn').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    if (!currentUser) {
+                        showToast('请先登录', false);
+                        return;
+                    }
+                    
+                    const postElement = event.currentTarget.closest('.post');
+                    const repliesSection = postElement.querySelector('.replies-section');
+                    
+                    if (repliesSection.classList.contains('hidden')) {
+                        repliesSection.classList.remove('hidden');
+                        loadRepliesForPost(postElement.dataset.id);
+                    } else {
+                        repliesSection.classList.add('hidden');
+                    }
+                });
+            });
+            
+            // 发送回复事件
+            document.querySelectorAll('.send-reply-btn').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    if (!currentUser) return;
+                    
+                    const postElement = event.currentTarget.closest('.post');
+                    const postId = postElement.dataset.id;
+                    const replyInput = postElement.querySelector('.reply-input');
+                    const content = replyInput.value.trim();
+                    
+                    if (!content) {
+                        showToast('请输入回复内容', false);
+                        return;
+                    }
+                    
+                    const replyId = generateId();
+                    const newReply = {
+                        id: replyId,
+                        post_id: postId,
+                        author_name: currentUser.name,
+                        author_employee_id: currentUser.employee_id,
+                        author_avatar: currentUser.avatar_url,
+                        content: content,
+                        is_admin: isAdmin,
+                        created_at: new Date().toISOString()
+                    };
+                    
+                    database.ref('replies/' + replyId).set(newReply)
+                        .then(async () => {
+                            await addUserPoints(currentUser.employee_id, 5, '回帖');
+                            
+                            replyInput.value = '';
+                            showToast('回复成功，获得5积分！');
+                        })
+                        .catch(error => {
+                            console.error('回复失败:', error);
+                            showToast('回复失败: ' + error.message, false);
+                        });
+                });
+            });
+        }
+
+        // 加载特定帖子的回复
+        function loadRepliesForPost(postId) {
+            const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);
+            
+            database.ref('replies').orderByChild('post_id').equalTo(postId).once('value', (snapshot) => {
+                const replies = [];
+                snapshot.forEach((childSnapshot) => {
+                    replies.push(childSnapshot.val());
+                });
+                
+                replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                
+                postElements.forEach(postElement => {
+                    const repliesContainer = postElement.querySelector('.replies-container');
+                    repliesContainer.innerHTML = '';
+                    
+                    if (replies.length === 0) {
+                        repliesContainer.innerHTML = '<p class="text-gray-500 text-sm text-center">暂无回复</p>';
+                    } else {
+                        replies.forEach(reply => {
+                            repliesContainer.appendChild(createReplyElement(reply));
+                        });
+                    }
+                });
+                
+                attachReplyEvents();
+            });
+        }
+        
+        // 更新所有回复
+        function updateAllReplies(snapshot) {
+            const allReplies = {};
+            snapshot.forEach(childSnapshot => {
+                const reply = childSnapshot.val();
+                if (!allReplies[reply.post_id]) {
+                    allReplies[reply.post_id] = [];
+                }
+                allReplies[reply.post_id].push(reply);
+            });
+            
+            for (const postId in allReplies) {
+                const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);
+                
+                allReplies[postId].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                
+                postElements.forEach(postElement => {
+                    const repliesSection = postElement.querySelector('.replies-section');
+                    if (!repliesSection.classList.contains('hidden')) {
+                        const repliesContainer = postElement.querySelector('.replies-container');
+                        repliesContainer.innerHTML = '';
+                        
+                        allReplies[postId].forEach(reply => {
+                            repliesContainer.appendChild(createReplyElement(reply));
+                        });
+                    }
+                });
+            }
+            
+            attachReplyEvents();
+        }
+        
+        // 创建回复元素
+        function createReplyElement(reply) {
+            const template = document.getElementById('replyTemplate');
+            const replyElement = template.content.cloneNode(true).querySelector('.reply');
+            
+            replyElement.dataset.id = reply.id;
+            
+            const avatarElem = replyElement.querySelector('.reply-avatar');
+            if (reply.author_avatar) {
+                avatarElem.src = reply.author_avatar;
+            }
+            
+            replyElement.querySelector('.reply-author').textContent = reply.author_name;
+            
+            if (reply.is_admin) {
+                replyElement.querySelector('.reply-admin-badge').classList.remove('hidden');
+            }
+            
+            const date = new Date(reply.created_at);
+            replyElement.querySelector('.reply-time').textContent = date.toLocaleString();
+            
+            replyElement.querySelector('.reply-content').textContent = reply.content;
+            
+            if (currentUser && (reply.author_employee_id === currentUser.employee_id || isAdmin)) {
+                replyElement.querySelector('.delete-reply-btn').classList.remove('hidden');
+            }
+            
+            return replyElement;
+        }
+        
+        // 添加回复相关事件
+        function attachReplyEvents() {
+            document.querySelectorAll('.delete-reply-btn').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    if (!currentUser) return;
+                    
+                    const replyElement = event.currentTarget.closest('.reply');
+                    const replyId = replyElement.dataset.id;
+                    
+                    if (confirm('确定要删除这条回复吗？')) {
+                        database.ref(`replies/${replyId}`).remove()
+                            .then(() => {
+                                showToast('删除回复成功');
+                            })
+                            .catch(error => {
+                                console.error('删除回复失败:', error);
+                                showToast('删除回复失败', false);
+                            });
+                    }
+                });
+            });
+        }
+
+        // 更新头像
+        async function updateAvatar() {
+            if (!currentUser || !document.getElementById('avatarInput').files.length) return;
+            
+            showLoading(true);
+            
+            try {
+                const file = document.getElementById('avatarInput').files[0];
+                const compressedFile = await compressImage(file);
+                const avatarUrl = await uploadImageToImgBB(compressedFile);
+                
+                if (!avatarUrl) {
+                    showToast('头像上传失败', false);
+                    return;
+                }
+                
+                await database.ref(`users/${currentUser.employee_id}`).update({
+                    avatar_url: avatarUrl
+                });
+                
+                currentUser.avatar_url = avatarUrl;
+                
+                document.getElementById('profileAvatar').src = avatarUrl;
+                document.getElementById('navUserAvatar').src = avatarUrl;
+                showToast('头像更新成功');
+                
+                updatePostsWithNewAvatar(avatarUrl);
+                updateRepliesWithNewAvatar(avatarUrl);
+            } catch (error) {
+                console.error('更新头像失败:', error);
+                showToast('更新头像失败', false);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // 更新用户所有帖子中的头像
+        function updatePostsWithNewAvatar(newAvatarUrl) {
+            if (!currentUser) return;
+            
+            database.ref('posts').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')
+                .then((snapshot) => {
+                    snapshot.forEach((childSnapshot) => {
+                        childSnapshot.ref.update({ author_avatar: newAvatarUrl });
+                    });
+                });
+        }
+        
+        // 更新用户所有回复中的头像
+        function updateRepliesWithNewAvatar(newAvatarUrl) {
+            if (!currentUser) return;
+            
+            database.ref('replies').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')
+                .then((snapshot) => {
+                    snapshot.forEach((childSnapshot) => {
+                        childSnapshot.ref.update({ author_avatar: newAvatarUrl });
+                    });
+                });
+        }
+        
+        // 更新用户所有帖子中的姓名
+        function updatePostsWithNewName(newName) {
+            if (!currentUser) return;
+            
+            database.ref('posts').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')
+                .then((snapshot) => {
+                    snapshot.forEach((childSnapshot) => {
+                        childSnapshot.ref.update({ author_name: newName });
+                    });
+                });
+        }
+        
+        // 更新用户所有回复中的姓名
+        function updateRepliesWithNewName(newName) {
+            if (!currentUser) return;
+            
+            database.ref('replies').orderByChild('author_employee_id').equalTo(currentUser.employee_id).once('value')
+                .then((snapshot) => {
+                    snapshot.forEach((childSnapshot) => {
+                        childSnapshot.ref.update({ author_name: newName });
+                    });
+                });
+        }
+
+        // 添加初始帖子（如果Firebase为空）
+        function addInitialPostsIfNeeded() {
+            database.ref('posts').once('value').then((snapshot) => {
+                if (!snapshot.exists()) {
+                    console.log('数据库为空，添加初始帖子');
+                    const initialPosts = {
+                        "init1": {
+                            id: "init1",
+                            author_name: "系统管理员",
+                            author_employee_id: "admin001",
+                            author_avatar: "https://via.placeholder.com/100",
+                            content: "欢迎使用青年π空间！这是一个技术问题示例帖子。",
+                            section: "tech",
+                            is_admin: true,
+                            is_pinned: false,
+                            likes: 0,
+                            created_at: new Date().toISOString()
+                        },
+                        "init2": {
+                            id: "init2",
+                            author_name: "系统管理员",
+                            author_employee_id: "admin001",
+                            author_avatar: "https://via.placeholder.com/100",
+                            content: "在这里可以分享日常问题和交流。",
+                            section: "daily",
+                            is_admin: true,
+                            is_pinned: false,
+                            likes: 0,
+                            created_at: new Date().toISOString()
+                        }
+                    };
+                    
+                    database.ref('posts').set(initialPosts);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
