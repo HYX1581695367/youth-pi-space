@@ -557,91 +557,109 @@
         }
 
         // 加载积分排行榜
-        function loadRankingList() {
-            showLoading(true);
+function loadRankingList() {
+    showLoading(true);
+    
+    database.ref('users').once('value').then((snapshot) => {
+        const rankingList = document.getElementById('rankingList');
+        rankingList.innerHTML = '';
+        
+        if (!snapshot.exists()) {
+            rankingList.innerHTML = '<p class="text-gray-500 text-center py-8">暂无数据</p>';
+            showLoading(false);
+            return;
+        }
+        
+        // 收集所有用户数据
+        const users = [];
+        const pointsUpdates = {}; // 用于批量更新缺少积分的用户
+        
+        snapshot.forEach((childSnapshot) => {
+            const userData = childSnapshot.val();
+            const employeeId = userData.employee_id;
             
-            database.ref('users').once('value').then((snapshot) => {
-                const rankingList = document.getElementById('rankingList');
-                rankingList.innerHTML = '';
-                
-                if (!snapshot.exists()) {
-                    rankingList.innerHTML = '<p class="text-gray-500 text-center py-8">暂无数据</p>';
-                    showLoading(false);
-                    return;
-                }
-                
-                // 收集所有用户数据
-                const users = [];
-                snapshot.forEach((childSnapshot) => {
-                    const userData = childSnapshot.val();
-                    users.push({
-                        employee_id: userData.employee_id,
-                        name: userData.name,
-                        avatar_url: userData.avatar_url,
-                        points: userData.points || 0,
-                        is_admin: userData.is_admin || false,
-                        is_system_admin: userData.is_system_admin || false
-                    });
-                });
-                
-                // 按积分降序排序
-                users.sort((a, b) => b.points - a.points);
-                
-                // 渲染排行榜
-                const template = document.getElementById('rankItemTemplate');
-                
-                users.forEach((user, index) => {
-                    const rankItem = template.content.cloneNode(true).querySelector('.rank-item');
-                    
-                    // 设置排名
-                    const rankNumber = rankItem.querySelector('.rank-number');
-                    if (index < 3) {
-                        // 前三名显示奖牌
-                        rankNumber.classList.add('rank-medal', `rank-${index + 1}`);
-                        rankNumber.textContent = index + 1;
-                    } else {
-                        rankNumber.textContent = index + 1;
-                    }
-                    
-                    // 设置头像
-                    if (user.avatar_url) {
-                        rankItem.querySelector('.rank-avatar').src = user.avatar_url;
-                    }
-                    
-                    // 设置姓名
-                    rankItem.querySelector('.rank-name').textContent = user.name;
-                    
-                    // 设置工号
-                    rankItem.querySelector('.rank-employee-id').textContent = `工号: ${user.employee_id}`;
-                    
-                    // 显示管理员标识
-                    if (user.is_system_admin) {
-                        const badge = rankItem.querySelector('.rank-admin-badge');
-                        badge.classList.remove('hidden', 'bg-red-500');
-                        badge.classList.add('bg-purple-500');
-                        badge.textContent = '系统管理员';
-                    } else if (user.is_admin) {
-                        rankItem.querySelector('.rank-admin-badge').classList.remove('hidden');
-                    }
-                    
-                    // 设置积分
-                    rankItem.querySelector('.rank-points').textContent = user.points;
-                    
-                    // 高亮当前用户
-                    if (currentUser && user.employee_id === currentUser.employee_id) {
-                        rankItem.querySelector('.rank-item').classList.add('bg-blue-50', 'border-blue-400');
-                    }
-                    
-                    rankingList.appendChild(rankItem);
-                });
-                
-                showLoading(false);
-            }).catch(error => {
-                console.error('加载排行榜失败:', error);
-                showToast('加载排行榜失败', false);
-                showLoading(false);
+            // 如果用户没有积分字段，初始化为0
+            let points = userData.points;
+            if (points === undefined || points === null) {
+                points = 0;
+                pointsUpdates[`users/${employeeId}/points`] = 0;
+            }
+            
+            users.push({
+                employee_id: employeeId,
+                name: userData.name,
+                avatar_url: userData.avatar_url,
+                points: points,
+                is_admin: userData.is_admin || false,
+                is_system_admin: userData.is_system_admin || false
+            });
+        });
+        
+        // 如果有需要更新的积分，批量更新
+        if (Object.keys(pointsUpdates).length > 0) {
+            database.ref().update(pointsUpdates).then(() => {
+                console.log('已初始化缺少积分的用户');
             });
         }
+        
+        // 按积分降序排序
+        users.sort((a, b) => b.points - a.points);
+        
+        // 渲染排行榜
+        const template = document.getElementById('rankItemTemplate');
+        
+        users.forEach((user, index) => {
+            const rankItem = template.content.cloneNode(true).querySelector('.rank-item');
+            
+            // 设置排名
+            const rankNumber = rankItem.querySelector('.rank-number');
+            if (index < 3) {
+                // 前三名显示奖牌
+                rankNumber.classList.add('rank-medal', `rank-${index + 1}`);
+                rankNumber.textContent = index + 1;
+            } else {
+                rankNumber.textContent = index + 1;
+            }
+            
+            // 设置头像
+            if (user.avatar_url) {
+                rankItem.querySelector('.rank-avatar').src = user.avatar_url;
+            }
+            
+            // 设置姓名
+            rankItem.querySelector('.rank-name').textContent = user.name;
+            
+            // 设置工号
+            rankItem.querySelector('.rank-employee-id').textContent = `工号: ${user.employee_id}`;
+            
+            // 显示管理员标识
+            if (user.is_system_admin) {
+                const badge = rankItem.querySelector('.rank-admin-badge');
+                badge.classList.remove('hidden', 'bg-red-500');
+                badge.classList.add('bg-purple-500');
+                badge.textContent = '系统管理员';
+            } else if (user.is_admin) {
+                rankItem.querySelector('.rank-admin-badge').classList.remove('hidden');
+            }
+            
+            // 设置积分
+            rankItem.querySelector('.rank-points').textContent = user.points;
+            
+            // 高亮当前用户
+            if (currentUser && user.employee_id === currentUser.employee_id) {
+                rankItem.classList.add('bg-blue-50', 'border-blue-400');
+            }
+            
+            rankingList.appendChild(rankItem);
+        });
+        
+        showLoading(false);
+    }).catch(error => {
+        console.error('加载排行榜失败:', error);
+        showToast('加载排行榜失败', false);
+        showLoading(false);
+    });
+}
 
         // 设置积分排行榜实时监听
         function setupRankingListener() {
