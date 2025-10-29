@@ -1,1208 +1,983 @@
-<!DOCTYPE html>  
-<html lang="zh-CN">  
-<head>  
-    <meta charset="UTF-8">  
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
-    <title>装备部件团支部青年π空间</title>  
-    <script src="https://cdn.tailwindcss.com"></script>  
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>装备部件团支部青年π空间</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Firebase SDK -->  
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>  
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>  
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     
-    <!-- 密码哈希库 -->  
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>  
+    <!-- 密码哈希库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     
-    <!-- 改进的样式 -->  
-    <style>  
-        .hidden {  
-            display: none !important;  
-        }  
+    <!-- 改进的样式 -->
+    <style>
+        .hidden {
+            display: none !important;
+        }
         
-        /* 增强移动端图片显示兼容性 */  
-        @media (max-width: 768px) {  
-            .post-image-container:not(.hidden) {  
-                display: block !important;  
-                width: 100% !important;  
-                text-align: center !important;  
-                margin-bottom: 1rem !important;  
-            }  
+        /* 增强移动端图片显示兼容性 */
+        @media (max-width: 768px) {
+            .post-image-container:not(.hidden) {
+                display: block !important;
+                width: 100% !important;
+                text-align: center !important;
+                margin-bottom: 1rem !important;
+            }
             
-            .post-image {  
-                max-width: 100% !important;  
-                height: auto !important;  
-                max-height: 300px !important;  
-                object-fit: contain !important;  
-                display: inline-block !important;  
-            }  
-        }  
+            .post-image {
+                max-width: 100% !important;
+                height: auto !important;
+                max-height: 300px !important;
+                object-fit: contain !important;
+                display: inline-block !important;
+            }
+        }
         
-        /* 积分排行榜动画 */  
-        .rank-item {  
-            transition: all 0.3s ease;  
-        }  
+        /* 积分排行榜动画 */
+        .rank-item {
+            transition: all 0.3s ease;
+        }
         
-        .rank-item:hover {  
-            transform: translateX(5px);  
-            background-color: #f0f9ff;  
-        }  
+        .rank-item:hover {
+            transform: translateX(5px);
+            background-color: #f0f9ff;
+        }
         
-        /* 排名奖牌样式 */  
-        .rank-medal {  
-            display: inline-flex;  
-            align-items: center;  
-            justify-content: center;  
-            width: 32px;  
-            height: 32px;  
-            border-radius: 50%;  
-            font-weight: bold;  
-            font-size: 14px;  
-        }  
+        /* 排名奖牌样式 */
+        .rank-medal {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 14px;
+        }
         
-        .rank-1 {  
-            background: linear-gradient(135deg, #FFD700, #FFA500);  
-            color: white;  
-        }  
+        .rank-1 {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: white;
+        }
         
-        .rank-2 {  
-            background: linear-gradient(135deg, #C0C0C0, #A8A8A8);  
-            color: white;  
-        }  
+        .rank-2 {
+            background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+            color: white;
+        }
         
-        .rank-3 {  
-            background: linear-gradient(135deg, #CD7F32, #B8860B);  
-            color: white;  
-        }  
+        .rank-3 {
+            background: linear-gradient(135deg, #CD7F32, #B8860B);
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen flex flex-col">
+        <!-- 导航栏 -->
+        <nav class="bg-blue-600 text-white shadow-lg">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <h1 class="text-2xl font-bold">装备部件团支部青年π空间</h1>
+                <div id="userNav" class="hidden">
+                    <div class="flex items-center space-x-3">
+                        <img id="navUserAvatar" class="w-8 h-8 rounded-full object-cover" src="https://via.placeholder.com/32" alt="用户头像">
+                        <span id="navUserName">加载中...</span>
+                        <span id="navUserPoints" class="px-2 py-1 bg-yellow-400 text-blue-900 rounded font-bold text-sm">0积分</span>
+                        <button id="editProfileBtn" class="px-3 py-1 bg-blue-500 rounded hover:bg-blue-600">编辑信息</button>
+                        <!-- 用户管理按钮（仅系统管理员可见） -->
+                        <button id="userManagementBtn" class="hidden px-3 py-1 bg-purple-500 rounded hover:bg-purple-600">用户管理</button>
+                        <!-- 管理员设置按钮（所有管理员可见） -->
+                        <button id="adminPanelBtn" class="hidden px-3 py-1 bg-red-500 rounded hover:bg-red-600">管理设置</button>
+                        <button id="logoutBtn" class="px-3 py-1 bg-gray-500 rounded hover:bg-gray-600">退出登录</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <div class="container mx-auto px-4 py-6 flex-grow">
+            <!-- 登录表单 -->
+            <div id="loginContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10">
+                <h2 class="text-xl font-semibold mb-4 text-center">登录青年π空间</h2>
+                <p class="text-gray-600 mb-6 text-center">请输入您的工号和密码</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-1">工号</label>
+                        <input id="loginEmployeeId" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入工号">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">密码</label>
+                        <input id="loginPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入密码">
+                    </div>
+                    <div class="flex justify-center">
+                        <button id="loginBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">登录</button>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-gray-600">首次使用? <button id="showRegisterBtn" class="text-blue-500 hover:underline">注册新账号</button></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 注册表单 -->
+            <div id="registerContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10 hidden">
+                <h2 class="text-xl font-semibold mb-4 text-center">注册新账号</h2>
+                <p class="text-gray-600 mb-6 text-center">首次使用工号需要注册</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-1">姓名</label>
+                        <input id="registerName" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入姓名">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">工号</label>
+                        <input id="registerEmployeeId" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入工号">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">设置密码</label>
+                        <input id="registerPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请设置密码">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">确认密码</label>
+                        <input id="confirmPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请再次输入密码">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">头像</label>
+                        <input id="registerAvatar" type="file" accept="image/*" class="w-full">
+                    </div>
+                    <div class="flex justify-center">
+                        <button id="registerBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">注册账号</button>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-gray-600">已有账号? <button id="showLoginBtn" class="text-blue-500 hover:underline">返回登录</button></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 修改用户信息表单 -->
+            <div id="userInfoContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10 hidden">
+                <h2 class="text-xl font-semibold mb-4 text-center">编辑个人信息</h2>
+                <p class="text-gray-600 mb-6 text-center">您可以修改个人信息</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-1">姓名</label>
+                        <input id="userName" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入姓名">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">头像</label>
+                        <input id="userAvatar" type="file" accept="image/*" class="w-full">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">修改密码 (留空则不修改)</label>
+                        <input id="newPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入新密码">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">确认新密码</label>
+                        <input id="confirmNewPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="再次输入新密码">
+                    </div>
+                    <div class="flex justify-center space-x-3">
+                        <button id="saveUserInfoBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">保存修改</button>
+                        <button id="cancelEditBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">取消</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 管理员面板 -->
+            <div id="adminPanelContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10 hidden">
+                <h2 class="text-xl font-semibold mb-4 text-center">管理员设置</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-1">添加管理员工号</label>
+                        <div class="flex">
+                            <input id="newAdminId" type="text" class="flex-grow px-4 py-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入工号">
+                            <button id="addAdminBtn" class="px-4 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600">添加</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">当前管理员列表</h3>
+                        <div id="adminList" class="space-y-2 max-h-60 overflow-y-auto p-2 border rounded">
+                            <p class="text-gray-500 text-center">加载中...</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-center">
+                        <button id="closeAdminPanelBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">关闭</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 用户管理面板 - 仅系统管理员可见 -->
+            <div id="userManagementContainer" class="bg-white shadow-md rounded-lg p-6 max-w-4xl mx-auto my-10 hidden">
+                <h2 class="text-xl font-semibold mb-4 text-center">用户管理</h2>
+                <div class="space-y-4">
+                    <div class="overflow-auto">
+                        <table class="min-w-full bg-white">
+                            <thead>
+                                <tr>
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">工号</th>
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">姓名</th>
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">积分</th>
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">注册时间</th>
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">管理员</th>
+                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTable">
+                                <!-- 用户数据将在这里动态填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-center">
+                        <button id="closeUserManagementBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">关闭</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主要内容区 -->
+            <div id="mainContainer" class="hidden">
+                <!-- 板块导航 -->
+                <div class="bg-white shadow-md rounded-lg p-4 mb-6">
+                    <div class="flex space-x-4">
+                        <button data-section="tech" class="section-btn px-4 py-2 rounded bg-blue-500 text-white">技术问题板块</button>
+                        <button data-section="daily" class="section-btn px-4 py-2 rounded bg-gray-200">日常问题板块</button>
+                        <button data-section="ranking" class="section-btn px-4 py-2 rounded bg-gray-200">积分排行榜</button>
+                        <button data-section="user" class="section-btn px-4 py-2 rounded bg-gray-200">用户板块</button>
+                    </div>
+                </div>
+
+                <!-- 技术问题板块 -->
+                <div id="techSection" class="section-content">
+                    <h2 class="text-xl font-bold mb-4">技术问题板块</h2>
+                    <div class="post-form bg-white shadow-md rounded-lg p-4 mb-6">
+                        <textarea id="techPostContent" class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3" rows="3" placeholder="分享你的技术问题..."></textarea>
+                        <div class="flex items-center mb-3">
+                            <label class="mr-2 text-gray-600">添加图片:</label>
+                            <input id="techPostImage" type="file" accept="image/*">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <button id="techPostBtn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">发布</button>
+                            <span class="text-sm text-gray-500">💰 发帖可获得 10 积分</span>
+                        </div>
+                    </div>
+                    <div id="techPosts" class="space-y-6"></div>
+                </div>
+
+                <!-- 日常问题板块 -->
+                <div id="dailySection" class="section-content hidden">
+                    <h2 class="text-xl font-bold mb-4">日常问题板块</h2>
+                    <div class="post-form bg-white shadow-md rounded-lg p-4 mb-6">
+                        <textarea id="dailyPostContent" class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3" rows="3" placeholder="分享你的日常问题..."></textarea>
+                        <div class="flex items-center mb-3">
+                            <label class="mr-2 text-gray-600">添加图片:</label>
+                            <input id="dailyPostImage" type="file" accept="image/*">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <button id="dailyPostBtn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">发布</button>
+                            <span class="text-sm text-gray-500">💰 发帖可获得 10 积分</span>
+                        </div>
+                    </div>
+                    <div id="dailyPosts" class="space-y-6"></div>
+                </div>
+
+                <!-- 积分排行榜板块 -->
+                <div id="rankingSection" class="section-content hidden">
+                    <h2 class="text-xl font-bold mb-4">🏆 积分排行榜</h2>
+                    <div class="bg-white shadow-md rounded-lg p-6">
+                        <div class="mb-4 text-center">
+                            <p class="text-gray-600">📊 发帖 +10分 | 回帖 +5分 | 优质帖置顶 +5分</p>
+                        </div>
+                        <div id="rankingList" class="space-y-3">
+                            <p class="text-gray-500 text-center py-8">加载中...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 用户板块 -->
+                <div id="userSection" class="section-content hidden">
+                    <h2 class="text-xl font-bold mb-4">个人中心</h2>
+                    <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+                        <div class="flex items-center space-x-4 mb-6">
+                            <div class="relative group">
+                                <img id="profileAvatar" class="w-20 h-20 rounded-full object-cover" src="https://via.placeholder.com/80" alt="用户头像">
+                                <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer" id="changeAvatarBtn">
+                                    <span class="text-white text-xs">更换头像</span>
+                                </div>
+                                <input type="file" id="avatarInput" class="hidden" accept="image/*">
+                            </div>
+                            <div>
+                                <h3 id="profileName" class="text-xl font-semibold">加载中...</h3>
+                                <p class="text-gray-600">工号: <span id="profileEmployeeId">加载中...</span></p>
+                                <p class="text-yellow-600 font-bold text-lg">💰 积分: <span id="profilePoints">0</span></p>
+                                <div class="flex space-x-2 mt-1">
+                                    <p id="adminBadge" class="hidden text-xs bg-red-500 text-white px-2 py-0.5 rounded inline-block">管理员</p>
+                                    <p id="systemAdminBadge" class="hidden text-xs bg-purple-500 text-white px-2 py-0.5 rounded inline-block">系统管理员</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="text-lg font-semibold mb-3">我的发布记录</h3>
+                    <div id="userPosts" class="space-y-6"></div>
+                </div>
+            </div>
+        </div>
         
-        /* 签到按钮动画 */  
-        .check-in-btn {  
-            position: relative;  
-            overflow: hidden;  
-            transition: all 0.3s ease;  
-        }  
-        
-        .check-in-btn:not(:disabled):hover {  
-            transform: translateY(-2px);  
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);  
-        }  
-        
-        .check-in-btn:disabled {  
-            opacity: 0.6;  
-            cursor: not-allowed;  
-        }  
-        
-        /* 签到成功动画 */  
-        @keyframes checkInSuccess {  
-            0% { transform: scale(1); }  
-            50% { transform: scale(1.1); }  
-            100% { transform: scale(1); }  
-        }  
-        
-        .check-in-success {  
-            animation: checkInSuccess 0.5s ease;  
-        }  
-        
-        /* 连续签到徽章 */  
-        .streak-badge {  
-            background: linear-gradient(135deg, #f59e0b, #ef4444);  
-            color: white;  
-            padding: 4px 12px;  
-            border-radius: 12px;  
-            font-size: 12px;  
-            font-weight: bold;  
-            display: inline-flex;  
-            align-items: center;  
-            gap: 4px;  
-        }  
-    </style>  
-</head>  
-<body class="bg-gray-100">  
-    <div class="min-h-screen flex flex-col">  
-        <!-- 导航栏 -->  
-        <nav class="bg-blue-600 text-white shadow-lg">  
-            <div class="container mx-auto px-4 py-3 flex justify-between items-center">  
-                <h1 class="text-2xl font-bold">装备部件团支部青年π空间</h1>  
-                <div id="userNav" class="hidden">  
-                    <div class="flex items-center space-x-3">  
-                        <img id="navUserAvatar" class="w-8 h-8 rounded-full object-cover" src="https://via.placeholder.com/32" alt="用户头像">  
-                        <span id="navUserName">加载中...</span>  
-                        <span id="navUserPoints" class="px-2 py-1 bg-yellow-400 text-blue-900 rounded font-bold text-sm">0积分</span>  
-                        <!-- 签到按钮 -->  
-                        <button id="checkInBtn" class="check-in-btn px-3 py-1 bg-green-500 rounded hover:bg-green-600 flex items-center gap-1">  
-                            <span>📅</span>  
-                            <span id="checkInBtnText">签到</span>  
-                        </button>  
-                        <button id="editProfileBtn" class="px-3 py-1 bg-blue-500 rounded hover:bg-blue-600">编辑信息</button>  
-                        <!-- 用户管理按钮（仅系统管理员可见） -->  
-                        <button id="userManagementBtn" class="hidden px-3 py-1 bg-purple-500 rounded hover:bg-purple-600">用户管理</button>  
-                        <!-- 管理员设置按钮（所有管理员可见） -->  
-                        <button id="adminPanelBtn" class="hidden px-3 py-1 bg-red-500 rounded hover:bg-red-600">管理设置</button>  
-                        <button id="logoutBtn" class="px-3 py-1 bg-gray-500 rounded hover:bg-gray-600">退出登录</button>  
-                    </div>  
-                </div>  
-            </div>  
-        </nav>  
+        <!-- 页脚 -->
+        <footer class="bg-gray-800 text-white py-4 mt-auto">
+            <div class="container mx-auto px-4 text-center">
+                <p>装备部件团支部青年π空间 &copy; 2025</p>
+            </div>
+        </footer>
+    </div>
 
-        <!-- 主内容区 -->  
-        <div class="container mx-auto px-4 py-6 flex-grow">  
-            <!-- 登录表单 -->  
-            <div id="loginContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10">  
-                <h2 class="text-xl font-semibold mb-4 text-center">登录青年π空间</h2>  
-                <p class="text-gray-600 mb-6 text-center">请输入您的工号和密码</p>  
-                <div class="space-y-4">  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">工号</label>  
-                        <input id="loginEmployeeId" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入工号">  
-                    </div>  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">密码</label>  
-                        <input id="loginPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入密码">  
-                    </div>  
-                    <div class="flex justify-center">  
-                        <button id="loginBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">登录</button>  
-                    </div>  
-                    <div class="text-center">  
-                        <p class="text-gray-600">首次使用? <button id="showRegisterBtn" class="text-blue-500 hover:underline">注册新账号</button></p>  
-                    </div>  
-                </div>  
-            </div>  
+    <!-- 状态提示 -->
+    <div id="statusToast" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-20 opacity-0">
+        操作成功
+    </div>
 
-            <!-- 注册表单 -->  
-            <div id="registerContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10 hidden">  
-                <h2 class="text-xl font-semibold mb-4 text-center">注册新账号</h2>  
-                <p class="text-gray-600 mb-6 text-center">首次使用工号需要注册</p>  
-                <div class="space-y-4">  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">姓名</label>  
-                        <input id="registerName" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入姓名">  
-                    </div>  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">工号</label>  
-                        <input id="registerEmployeeId" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入工号">  
-                    </div>  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">设置密码</label>  
-                        <input id="registerPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请设置密码">  
-                    </div>  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">确认密码</label>  
-                        <input id="confirmPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请再次输入密码">  
-                    </div>  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">头像</label>  
-                        <input id="registerAvatar" type="file" accept="image/*" class="w-full">  
-                    </div>  
-                    <div class="flex justify-center">  
-                        <button id="registerBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">注册账号</button>  
-                    </div>  
-                    <div class="text-center">  
-                        <p class="text-gray-600">已有账号? <button id="showLoginBtn" class="text-blue-500 hover:underline">返回登录</button></p>  
-                    </div>  
-                </div>  
-            </div>  
+    <!-- 数据加载中遮罩 -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-4 rounded-lg shadow-lg text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-2"></div>
+            <p>加载中，请稍候...</p>
+        </div>
+    </div>
 
-            <!-- 修改用户信息表单 -->  
-            <div id="userInfoContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10 hidden">  
-                <h2 class="text-xl font-semibold mb-4 text-center">编辑个人信息</h2>  
-                <p class="text-gray-600 mb-6 text-center">您可以修改个人信息</p>  
-                <div class="space-y-4">  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">姓名</label>  
-                        <input id="userName" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入姓名">  
-                    </div>  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">头像</label>  
-                        <input id="userAvatar" type="file" accept="image/*" class="w-full">  
-                    </div>  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">修改密码 (留空则不修改)</label>  
-                        <input id="newPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入新密码">  
-                    </div>  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">确认新密码</label>  
-                        <input id="confirmNewPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="再次输入新密码">  
-                    </div>  
-                    <div class="flex justify-center space-x-3">  
-                        <button id="saveUserInfoBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">保存修改</button>  
-                        <button id="cancelEditBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">取消</button>  
-                    </div>  
-                </div>  
-            </div>  
-
-            <!-- 管理员面板 -->  
-            <div id="adminPanelContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10 hidden">  
-                <h2 class="text-xl font-semibold mb-4 text-center">管理员设置</h2>  
-                <div class="space-y-4">  
-                    <div>  
-                        <label class="block text-gray-700 mb-1">添加管理员工号</label>  
-                        <div class="flex">  
-                            <input id="newAdminId" type="text" class="flex-grow px-4 py-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入工号">  
-                            <button id="addAdminBtn" class="px-4 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600">添加</button>  
-                        </div>  
-                    </div>  
-                    <div>  
-                        <h3 class="text-lg font-semibold mb-2">当前管理员列表</h3>  
-                        <div id="adminList" class="space-y-2 max-h-60 overflow-y-auto p-2 border rounded">  
-                            <p class="text-gray-500 text-center">加载中...</p>  
-                        </div>  
-                    </div>  
-                    <div class="flex justify-center">  
-                        <button id="closeAdminPanelBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">关闭</button>  
-                    </div>  
-                </div>  
-            </div>  
-
-            <!-- 用户管理面板 - 仅系统管理员可见 -->  
-            <div id="userManagementContainer" class="bg-white shadow-md rounded-lg p-6 max-w-4xl mx-auto my-10 hidden">  
-                <h2 class="text-xl font-semibold mb-4 text-center">用户管理</h2>  
-                <div class="space-y-4">  
-                    <div class="overflow-auto">  
-                        <table class="min-w-full bg-white">  
-                            <thead>  
-                                <tr>  
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">工号</th>  
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">姓名</th>  
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">积分</th>  
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">连续签到</th>  
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">注册时间</th>  
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">管理员</th>  
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">操作</th>  
-                                </tr>  
-                            </thead>  
-                            <tbody id="userTable">  
-                                <!-- 用户数据将在这里动态填充 -->  
-                            </tbody>  
-                        </table>  
-                    </div>  
-                    <div class="flex justify-center">  
-                        <button id="closeUserManagementBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">关闭</button>  
-                    </div>  
-                </div>  
-            </div>  
-
-            <!-- 主要内容区 -->  
-            <div id="mainContainer" class="hidden">  
-                <!-- 板块导航 -->  
-                <div class="bg-white shadow-md rounded-lg p-4 mb-6">  
-                    <div class="flex space-x-4">  
-                        <button data-section="tech" class="section-btn px-4 py-2 rounded bg-blue-500 text-white">技术问题板块</button>  
-                        <button data-section="daily" class="section-btn px-4 py-2 rounded bg-gray-200">日常问题板块</button>  
-                        <button data-section="ranking" class="section-btn px-4 py-2 rounded bg-gray-200">积分排行榜</button>  
-                        <button data-section="user" class="section-btn px-4 py-2 rounded bg-gray-200">用户板块</button>  
-                    </div>  
-                </div>  
-
-                <!-- 技术问题板块 -->  
-                <div id="techSection" class="section-content">  
-                    <h2 class="text-xl font-bold mb-4">技术问题板块</h2>  
-                    <div class="post-form bg-white shadow-md rounded-lg p-4 mb-6">  
-                        <textarea id="techPostContent" class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3" rows="3" placeholder="分享你的技术问题..."></textarea>  
-                        <div class="flex items-center mb-3">  
-                            <label class="mr-2 text-gray-600">添加图片:</label>  
-                            <input id="techPostImage" type="file" accept="image/*">  
-                        </div>  
-                        <div class="flex items-center justify-between">  
-                            <button id="techPostBtn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">发布</button>  
-                            <span class="text-sm text-gray-500">💰 发帖可获得 10 积分</span>  
-                        </div>  
-                    </div>  
-                    <div id="techPosts" class="space-y-6"></div>  
-                </div>  
-
-                <!-- 日常问题板块 -->  
-                <div id="dailySection" class="section-content hidden">  
-                    <h2 class="text-xl font-bold mb-4">日常问题板块</h2>  
-                    <div class="post-form bg-white shadow-md rounded-lg p-4 mb-6">  
-                        <textarea id="dailyPostContent" class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3" rows="3" placeholder="分享你的日常问题..."></textarea>  
-                        <div class="flex items-center mb-3">  
-                            <label class="mr-2 text-gray-600">添加图片:</label>  
-                            <input id="dailyPostImage" type="file" accept="image/*">  
-                        </div>  
-                        <div class="flex items-center justify-between">  
-                            <button id="dailyPostBtn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">发布</button>  
-                            <span class="text-sm text-gray-500">💰 发帖可获得 10 积分</span>  
-                        </div>  
-                    </div>  
-                    <div id="dailyPosts" class="space-y-6"></div>  
-                </div>  
-
-                <!-- 积分排行榜板块 -->  
-                <div id="rankingSection" class="section-content hidden">  
-                    <h2 class="text-xl font-bold mb-4">🏆 积分排行榜</h2>  
-                    <div class="bg-white shadow-md rounded-lg p-6">  
-                        <div class="mb-4 text-center">  
-                            <p class="text-gray-600">📊 每日签到 +2分 | 发帖 +10分 | 回帖 +5分 | 优质帖置顶 +5分</p>  
-                        </div>  
-                        <div id="rankingList" class="space-y-3">  
-                            <p class="text-gray-500 text-center py-8">加载中...</p>  
-                        </div>  
-                    </div>  
-                </div>  
-
-                <!-- 用户板块 -->  
-                <div id="userSection" class="section-content hidden">  
-                    <h2 class="text-xl font-bold mb-4">个人中心</h2>  
-                    <div class="bg-white shadow-md rounded-lg p-6 mb-6">  
-                        <div class="flex items-center space-x-4 mb-6">  
-                            <div class="relative group">  
-                                <img id="profileAvatar" class="w-20 h-20 rounded-full object-cover" src="https://via.placeholder.com/80" alt="用户头像">  
-                                <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer" id="changeAvatarBtn">  
-                                    <span class="text-white text-xs">更换头像</span>  
-                                </div>  
-                                <input type="file" id="avatarInput" class="hidden" accept="image/*">  
-                            </div>  
-                            <div>  
-                                <h3 id="profileName" class="text-xl font-semibold">加载中...</h3>  
-                                <p class="text-gray-600">工号: <span id="profileEmployeeId">加载中...</span></p>  
-                                <p class="text-yellow-600 font-bold text-lg">💰 积分: <span id="profilePoints">0</span></p>  
-                                <!-- 签到信息 -->  
-                                <div class="mt-2">  
-                                    <span id="checkInStreak" class="streak-badge">🔥 连续签到 0 天</span>  
-                                    <p id="lastCheckInTime" class="text-xs text-gray-500 mt-1">上次签到: 未签到</p>  
-                                </div>  
-                                <div class="flex space-x-2 mt-1">  
-                                    <p id="adminBadge" class="hidden text-xs bg-red-500 text-white px-2 py-0.5 rounded inline-block">管理员</p>  
-                                    <p id="systemAdminBadge" class="hidden text-xs bg-purple-500 text-white px-2 py-0.5 rounded inline-block">系统管理员</p>  
-                                </div>  
-                            </div>  
-                        </div>  
-                    </div>  
-
-                    <h3 class="text-lg font-semibold mb-3">我的发布记录</h3>  
-                    <div id="userPosts" class="space-y-6"></div>  
-                </div>  
-            </div>  
-        </div>  
-        
-        <!-- 页脚 -->  
-        <footer class="bg-gray-800 text-white py-4 mt-auto">  
-            <div class="container mx-auto px-4 text-center">  
-                <p>装备部件团支部青年π空间 &copy; 2025</p>  
-            </div>  
-        </footer>  
-    </div>  
-
-    <!-- 状态提示 -->  
-    <div id="statusToast" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-20 opacity-0">  
-        操作成功  
-    </div>  
-
-    <!-- 数据加载中遮罩 -->  
-    <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">  
-        <div class="bg-white p-4 rounded-lg shadow-lg text-center">  
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-2"></div>  
-            <p>加载中，请稍候...</p>  
-        </div>  
-    </div>  
-
-    <!-- 模板 -->  
-    <template id="postTemplate">  
-        <div class="post bg-white shadow-md rounded-lg p-4">  
-            <div class="flex items-start space-x-3 mb-3">  
-                <img class="post-avatar w-10 h-10 rounded-full object-cover" src="https://via.placeholder.com/40" alt="用户头像">  
-                <div class="flex-grow">  
-                    <div class="flex items-center space-x-2">  
-                        <h3 class="post-author font-semibold"></h3>  
-                        <span class="post-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>  
-                        <span class="post-pinned-badge hidden text-xs bg-yellow-500 text-white px-1 rounded">置顶</span>  
-                    </div>  
-                    <p class="post-time text-gray-500 text-sm"></p>  
-                </div>  
-            </div>  
-            <p class="post-content mb-3"></p>  
-            <!-- 修改为改进的图片容器 -->  
-            <div class="post-image-container mb-3 hidden text-center">  
-                <img class="post-image max-w-full max-h-96 inline-block object-contain rounded" alt="发布的图片">  
-            </div>  
-            <div class="flex items-center space-x-4 text-gray-500 mb-3">  
-                <button class="like-btn flex items-center space-x-1 hover:text-blue-500">  
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">  
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />  
-                    </svg>  
-                    <span class="like-count">0</span>  
-                </button>  
-                <button class="reply-btn flex items-center space-x-1 hover:text-blue-500">  
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">  
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />  
-                    </svg>  
-                    <span>回复</span>  
-                </button>  
-                <button class="pin-btn hidden text-yellow-500 hover:text-yellow-700">置顶</button>  
-                <button class="unpin-btn hidden text-yellow-500 hover:text-yellow-700">取消置顶</button>  
-                <button class="delete-btn hidden text-red-500 hover:text-red-700">删除</button>  
-            </div>  
+    <!-- 模板 -->
+    <template id="postTemplate">
+        <div class="post bg-white shadow-md rounded-lg p-4">
+            <div class="flex items-start space-x-3 mb-3">
+                <img class="post-avatar w-10 h-10 rounded-full object-cover" src="https://via.placeholder.com/40" alt="用户头像">
+                <div class="flex-grow">
+                    <div class="flex items-center space-x-2">
+                        <h3 class="post-author font-semibold"></h3>
+                        <span class="post-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>
+                        <span class="post-pinned-badge hidden text-xs bg-yellow-500 text-white px-1 rounded">置顶</span>
+                    </div>
+                    <p class="post-time text-gray-500 text-sm"></p>
+                </div>
+            </div>
+            <p class="post-content mb-3"></p>
+            <!-- 修改为改进的图片容器 -->
+            <div class="post-image-container mb-3 hidden text-center">
+                <img class="post-image max-w-full max-h-96 inline-block object-contain rounded" alt="发布的图片">
+            </div>
+            <div class="flex items-center space-x-4 text-gray-500 mb-3">
+                <button class="like-btn flex items-center space-x-1 hover:text-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                    </svg>
+                    <span class="like-count">0</span>
+                </button>
+                <button class="reply-btn flex items-center space-x-1 hover:text-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                    <span>回复</span>
+                </button>
+                <button class="pin-btn hidden text-yellow-500 hover:text-yellow-700">置顶</button>
+                <button class="unpin-btn hidden text-yellow-500 hover:text-yellow-700">取消置顶</button>
+                <button class="delete-btn hidden text-red-500 hover:text-red-700">删除</button>
+            </div>
             
-            <!-- 回复区域 -->  
-            <div class="replies-section mt-2 border-t pt-2 hidden">  
-                <div class="reply-form mb-3">  
-                    <div class="flex flex-col">  
-                        <input type="text" class="reply-input flex-grow px-3 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 mb-2" placeholder="回复这条消息...">  
-                        <div class="flex items-center justify-between">  
-                            <button class="send-reply-btn px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">发送回复</button>  
-                            <span class="text-xs text-gray-500">💰 回复可获得 5 积分</span>  
-                        </div>  
-                    </div>  
-                </div>  
-                <div class="replies-container space-y-2"></div>  
-            </div>  
-        </div>  
-    </template>  
+            <!-- 回复区域 -->
+            <div class="replies-section mt-2 border-t pt-2 hidden">
+                <div class="reply-form mb-3">
+                    <div class="flex flex-col">
+                        <input type="text" class="reply-input flex-grow px-3 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 mb-2" placeholder="回复这条消息...">
+                        <div class="flex items-center justify-between">
+                            <button class="send-reply-btn px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">发送回复</button>
+                            <span class="text-xs text-gray-500">💰 回复可获得 5 积分</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="replies-container space-y-2"></div>
+            </div>
+        </div>
+    </template>
 
-    <!-- 回复模板 -->  
-    <template id="replyTemplate">  
-        <div class="reply bg-gray-50 p-2 rounded">  
-            <div class="flex items-start">  
-                <img class="reply-avatar w-6 h-6 rounded-full object-cover mr-2" src="https://via.placeholder.com/24" alt="回复者头像">  
-                <div class="flex-grow">  
-                    <div class="flex items-center">  
-                        <span class="reply-author font-medium text-sm mr-1"></span>  
-                        <span class="reply-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>  
-                        <span class="reply-time text-gray-400 text-xs ml-auto"></span>  
-                    </div>  
-                    <p class="reply-content text-sm"></p>  
-                </div>  
-                <button class="delete-reply-btn hidden text-red-500 hover:text-red-700 text-xs ml-2">删除</button>  
-            </div>  
-        </div>  
-    </template>  
+    <!-- 回复模板 -->
+    <template id="replyTemplate">
+        <div class="reply bg-gray-50 p-2 rounded">
+            <div class="flex items-start">
+                <img class="reply-avatar w-6 h-6 rounded-full object-cover mr-2" src="https://via.placeholder.com/24" alt="回复者头像">
+                <div class="flex-grow">
+                    <div class="flex items-center">
+                        <span class="reply-author font-medium text-sm mr-1"></span>
+                        <span class="reply-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>
+                        <span class="reply-time text-gray-400 text-xs ml-auto"></span>
+                    </div>
+                    <p class="reply-content text-sm"></p>
+                </div>
+                <button class="delete-reply-btn hidden text-red-500 hover:text-red-700 text-xs ml-2">删除</button>
+            </div>
+        </div>
+    </template>
 
-    <!-- 管理员项模板 -->  
-    <template id="adminItemTemplate">  
-        <div class="admin-item flex items-center justify-between p-2 bg-gray-100 rounded">  
-            <span class="admin-id font-medium"></span>  
-            <button class="remove-admin-btn text-red-500 hover:text-red-700 text-sm">移除</button>  
-        </div>  
-    </template>  
+    <!-- 管理员项模板 -->
+    <template id="adminItemTemplate">
+        <div class="admin-item flex items-center justify-between p-2 bg-gray-100 rounded">
+            <span class="admin-id font-medium"></span>
+            <button class="remove-admin-btn text-red-500 hover:text-red-700 text-sm">移除</button>
+        </div>
+    </template>
 
-    <!-- 积分排行榜项模板 -->  
-    <template id="rankItemTemplate">  
-        <div class="rank-item flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">  
-            <div class="flex items-center space-x-4">  
-                <div class="rank-number text-gray-600 font-bold text-lg w-8 text-center"></div>  
-                <img class="rank-avatar w-12 h-12 rounded-full object-cover" src="https://via.placeholder.com/48" alt="用户头像">  
-                <div>  
-                    <div class="flex items-center space-x-2">  
-                        <h4 class="rank-name font-semibold text-gray-800"></h4>  
-                        <span class="rank-admin-badge hidden text-xs bg-red-500 text-white px-2 py-0.5 rounded">管理员</span>  
-                    </div>  
-                    <p class="rank-employee-id text-sm text-gray-500"></p>  
-                    <p class="rank-streak text-xs text-orange-600 mt-1">🔥 连续签到 <span class="rank-streak-days">0</span> 天</p>  
-                </div>  
-            </div>  
-            <div class="text-right">  
-                <p class="rank-points text-2xl font-bold text-yellow-600"></p>  
-                <p class="text-xs text-gray-500">积分</p>  
-            </div>  
-        </div>  
-    </template>  
+    <!-- 积分排行榜项模板 -->
+    <template id="rankItemTemplate">
+        <div class="rank-item flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="flex items-center space-x-4">
+                <div class="rank-number text-gray-600 font-bold text-lg w-8 text-center"></div>
+                <img class="rank-avatar w-12 h-12 rounded-full object-cover" src="https://via.placeholder.com/48" alt="用户头像">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h4 class="rank-name font-semibold text-gray-800"></h4>
+                        <span class="rank-admin-badge hidden text-xs bg-red-500 text-white px-2 py-0.5 rounded">管理员</span>
+                    </div>
+                    <p class="rank-employee-id text-sm text-gray-500"></p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="rank-points text-2xl font-bold text-yellow-600"></p>
+                <p class="text-xs text-gray-500">积分</p>
+            </div>
+        </div>
+    </template>
 
-    <script>  
-        // Firebase 配置  
-        const firebaseConfig = {  
-            apiKey: "AIzaSyC19CX0gSWAzvFevy43EQRy4uX1A265LuM",  
-            authDomain: "youth-pi-space.firebaseapp.com",  
-            databaseURL: "https://youth-pi-space-default-rtdb.asia-southeast1.firebasedatabase.app",  
-            projectId: "youth-pi-space",  
-            storageBucket: "youth-pi-space.firebasestorage.app",  
-            messagingSenderId: "895213716516",  
-            appId: "1:895213716516:web:9548b7964aaf3074b504b1"  
-        };  
+    <script>
+        // Firebase 配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyC19CX0gSWAzvFevy43EQRy4uX1A265LuM",
+            authDomain: "youth-pi-space.firebaseapp.com",
+            databaseURL: "https://youth-pi-space-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "youth-pi-space",
+            storageBucket: "youth-pi-space.firebasestorage.app",
+            messagingSenderId: "895213716516",
+            appId: "1:895213716516:web:9548b7964aaf3074b504b1"
+        };
         
-        // 初始化 Firebase  
-        firebase.initializeApp(firebaseConfig);  
-        const database = firebase.database();  
+        // 初始化 Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
         
-        // 当前用户对象  
-        let currentUser = null;  
-        let isAdmin = false;  
-        let isSystemAdmin = false;  
+        // 当前用户对象
+        let currentUser = null;
+        let isAdmin = false;
+        let isSystemAdmin = false;
         
-        // 是否已加载过帖子的标志，避免重复处理  
-        let postsInitialized = false;  
+        // 是否已加载过帖子的标志，避免重复处理
+        let postsInitialized = false;
 
-        // 显示/隐藏加载遮罩  
-        function showLoading(show = true) {  
-            document.getElementById('loadingOverlay').classList.toggle('hidden', !show);  
-        }  
+        // 显示/隐藏加载遮罩
+        function showLoading(show = true) {
+            document.getElementById('loadingOverlay').classList.toggle('hidden', !show);
+        }
 
-        // 状态提示  
-        function showToast(message, isSuccess = true) {  
-            const toast = document.getElementById('statusToast');  
-            toast.textContent = message;  
-            toast.classList.remove('translate-y-20', 'opacity-0');  
-            toast.classList.add('translate-y-0', 'opacity-100');  
+        // 状态提示
+        function showToast(message, isSuccess = true) {
+            const toast = document.getElementById('statusToast');
+            toast.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
             
-            if (isSuccess) {  
-                toast.classList.remove('bg-red-500');  
-                toast.classList.add('bg-green-500');  
-            } else {  
-                toast.classList.remove('bg-green-500');  
-                toast.classList.add('bg-red-500');  
-            }  
+            if (isSuccess) {
+                toast.classList.remove('bg-red-500');
+                toast.classList.add('bg-green-500');
+            } else {
+                toast.classList.remove('bg-green-500');
+                toast.classList.add('bg-red-500');
+            }
             
-            setTimeout(() => {  
-                toast.classList.remove('translate-y-0', 'opacity-100');  
-                toast.classList.add('translate-y-20', 'opacity-0');  
-            }, 3000);  
-        }  
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
 
-        // 生成密码哈希  
-        function hashPassword(password, salt = null) {  
-            if (!salt) {  
-                // 生成随机盐值  
-                salt = CryptoJS.lib.WordArray.random(128/8).toString();  
-            }  
+        // 生成密码哈希
+        function hashPassword(password, salt = null) {
+            if (!salt) {
+                // 生成随机盐值
+                salt = CryptoJS.lib.WordArray.random(128/8).toString();
+            }
             
-            // 使用盐值创建PBKDF2哈希  
-            const hash = CryptoJS.PBKDF2(password, salt, {  
-                keySize: 512/32,  
-                iterations: 1000  
-            }).toString();  
+            // 使用盐值创建PBKDF2哈希
+            const hash = CryptoJS.PBKDF2(password, salt, {
+                keySize: 512/32,
+                iterations: 1000
+            }).toString();
             
-            // 返回格式: salt:hash  
-            return salt + ":" + hash;  
-        }  
+            // 返回格式: salt:hash
+            return salt + ":" + hash;
+        }
         
-        // 验证密码  
-        function verifyPassword(password, storedHash) {  
-            const [salt, hash] = storedHash.split(":");  
-            const calculatedHash = hashPassword(password, salt);  
-            return calculatedHash === storedHash;  
-        }  
+        // 验证密码
+        function verifyPassword(password, storedHash) {
+            const [salt, hash] = storedHash.split(":");
+            const calculatedHash = hashPassword(password, salt);
+            return calculatedHash === storedHash;
+        }
 
-        // ========== 新增：签到系统函数 ==========  
+        // ========== 新增：积分系统函数 ==========
         
-        // 获取今天的日期字符串（YYYY-MM-DD格式）  
-        function getTodayDateString() {  
-            const today = new Date();  
-            const year = today.getFullYear();  
-            const month = String(today.getMonth() + 1).padStart(2, '0');  
-            const day = String(today.getDate()).padStart(2, '0');  
-            return `${year}-${month}-${day}`;  
-        }  
-        
-        // 检查是否已签到  
-        async function checkIfCheckedInToday() {  
-            if (!currentUser) return false;  
-            
-            try {  
-                const snapshot = await database.ref(`users/${currentUser.employee_id}/last_check_in_date`).once('value');  
-                const lastCheckInDate = snapshot.val();  
-                const today = getTodayDateString();  
+        // 增加用户积分
+        async function addUserPoints(employeeId, points, reason = '') {
+            try {
+                const userRef = database.ref(`users/${employeeId}`);
+                const snapshot = await userRef.once('value');
                 
-                return lastCheckInDate === today;  
-            } catch (error) {  
-                console.error('检查签到状态失败:', error);  
-                return false;  
-            }  
-        }  
-        
-        // 计算连续签到天数  
-        function calculateCheckInStreak(lastCheckInDate) {  
-            if (!lastCheckInDate) return 0;  
-            
-            const today = new Date();  
-            const lastDate = new Date(lastCheckInDate);  
-            
-            // 重置时间为当天0点，便于比较  
-            today.setHours(0, 0, 0, 0);  
-            lastDate.setHours(0, 0, 0, 0);  
-            
-            const diffTime = today - lastDate;  
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));  
-            
-            // 如果是今天签到，返回当前连续天数  
-            if (diffDays === 0) {  
-                return currentUser.check_in_streak || 1;  
-            }  
-            // 如果是昨天签到，连续天数+1  
-            else if (diffDays === 1) {  
-                return (currentUser.check_in_streak || 0) + 1;  
-            }  
-            // 否则中断，重新开始  
-            else {  
-                return 1;  
-            }  
-        }  
-        
-        // 每日签到  
-        async function dailyCheckIn() {  
-            if (!currentUser) {  
-                showToast('请先登录', false);  
-                return;  
-            }  
-            
-            const checkInBtn = document.getElementById('checkInBtn');  
-            
-            try {  
-                // 检查今天是否已签到  
-                const alreadyCheckedIn = await checkIfCheckedInToday();  
-                
-                if (alreadyCheckedIn) {  
-                    showToast('今天已经签到过了！', false);  
-                    return;  
-                }  
-                
-                // 禁用按钮  
-                checkInBtn.disabled = true;  
-                
-                const today = getTodayDateString();  
-                const lastCheckInDate = currentUser.last_check_in_date;  
-                const newStreak = calculateCheckInStreak(lastCheckInDate);  
-                
-                // 更新数据库  
-                const updates = {  
-                    last_check_in_date: today,  
-                    check_in_streak: newStreak  
-                };  
-                
-                await database.ref(`users/${currentUser.employee_id}`).update(updates);  
-                
-                // 增加2分  
-                const newPoints = await addUserPoints(currentUser.employee_id, 2, '每日签到');  
-                
-                // 更新本地数据  
-                currentUser.last_check_in_date = today;  
-                currentUser.check_in_streak = newStreak;  
-                
-                // 更新UI  
-                updateCheckInUI();  
-                
-                // 动画效果  
-                checkInBtn.classList.add('check-in-success');  
-                setTimeout(() => {  
-                    checkInBtn.classList.remove('check-in-success');  
-                }, 500);  
-                
-                showToast(`签到成功！获得2积分，连续签到${newStreak}天🎉`);  
-                
-            } catch (error) {  
-                console.error('签到失败:', error);  
-                showToast('签到失败: ' + error.message, false);  
-                checkInBtn.disabled = false;  
-            }  
-        }  
-        
-        // 更新签到按钮状态  
-        async function updateCheckInUI() {  
-            if (!currentUser) return;  
-            
-            const checkInBtn = document.getElementById('checkInBtn');  
-            const checkInBtnText = document.getElementById('checkInBtnText');  
-            const checkInStreak = document.getElementById('checkInStreak');  
-            const lastCheckInTime = document.getElementById('lastCheckInTime');  
-            
-            // 检查今天是否已签到  
-            const alreadyCheckedIn = await checkIfCheckedInToday();  
-            
-            if (alreadyCheckedIn) {  
-                checkInBtn.disabled = true;  
-                checkInBtn.classList.remove('bg-green-500', 'hover:bg-green-600');  
-                checkInBtn.classList.add('bg-gray-400');  
-                checkInBtnText.textContent = '已签到';  
-            } else {  
-                checkInBtn.disabled = false;  
-                checkInBtn.classList.remove('bg-gray-400');  
-                checkInBtn.classList.add('bg-green-500', 'hover:bg-green-600');  
-                checkInBtnText.textContent = '签到';  
-            }  
-            
-            // 更新连续签到天数  
-            const streak = currentUser.check_in_streak || 0;  
-            if (checkInStreak) {  
-                checkInStreak.innerHTML = `🔥 连续签到 ${streak} 天`;  
-            }  
-            
-            // 更新上次签到时间  
-            if (lastCheckInTime && currentUser.last_check_in_date) {  
-                lastCheckInTime.textContent = `上次签到: ${currentUser.last_check_in_date}`;  
-            }  
-        }  
-
-        // ========== 积分系统函数 ==========  
-        
-        // 增加用户积分  
-        async function addUserPoints(employeeId, points, reason = '') {  
-            try {  
-                const userRef = database.ref(`users/${employeeId}`);  
-                const snapshot = await userRef.once('value');  
-                
-                if (snapshot.exists()) {  
-                    const userData = snapshot.val();  
-                    const currentPoints = userData.points || 0;  
-                    const newPoints = currentPoints + points;  
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    const currentPoints = userData.points || 0;
+                    const newPoints = currentPoints + points;
                     
-                    await userRef.update({ points: newPoints });  
+                    await userRef.update({ points: newPoints });
                     
-                    // 如果是当前用户，更新本地数据和UI  
-                    if (currentUser && currentUser.employee_id === employeeId) {  
-                        currentUser.points = newPoints;  
-                        updatePointsUI();  
-                    }  
+                    // 如果是当前用户，更新本地数据和UI
+                    if (currentUser && currentUser.employee_id === employeeId) {
+                        currentUser.points = newPoints;
+                        updatePointsUI();
+                    }
                     
-                    console.log(`用户 ${employeeId} 获得 ${points} 积分 (${reason}), 当前总积分: ${newPoints}`);  
-                    return newPoints;  
-                }  
-            } catch (error) {  
-                console.error('增加积分失败:', error);  
-            }  
-            return 0;  
-        }  
+                    console.log(`用户 ${employeeId} 获得 ${points} 积分 (${reason}), 当前总积分: ${newPoints}`);
+                    return newPoints;
+                }
+            } catch (error) {
+                console.error('增加积分失败:', error);
+            }
+            return 0;
+        }
 
-        // 更新积分显示UI  
-        function updatePointsUI() {  
-            if (currentUser) {  
-                const points = currentUser.points || 0;  
-                document.getElementById('navUserPoints').textContent = `${points}积分`;  
-                document.getElementById('profilePoints').textContent = points;  
-            }  
-        }  
+        // 更新积分显示UI
+        function updatePointsUI() {
+            if (currentUser) {
+                const points = currentUser.points || 0;
+                document.getElementById('navUserPoints').textContent = `${points}积分`;
+                document.getElementById('profilePoints').textContent = points;
+            }
+        }
 
-        // 加载积分排行榜  
-        function loadRankingList() {  
-            showLoading(true);  
+        // 加载积分排行榜
+function loadRankingList() {
+    showLoading(true);
+    
+    database.ref('users').once('value').then((snapshot) => {
+        const rankingList = document.getElementById('rankingList');
+        rankingList.innerHTML = '';
+        
+        if (!snapshot.exists()) {
+            rankingList.innerHTML = '<p class="text-gray-500 text-center py-8">暂无数据</p>';
+            showLoading(false);
+            return;
+        }
+        
+        // 收集所有用户数据
+        const users = [];
+        const pointsUpdates = {}; // 用于批量更新缺少积分的用户
+        
+        snapshot.forEach((childSnapshot) => {
+            const userData = childSnapshot.val();
+            const employeeId = userData.employee_id;
             
-            database.ref('users').once('value').then((snapshot) => {  
-                const rankingList = document.getElementById('rankingList');  
-                rankingList.innerHTML = '';  
-                
-                if (!snapshot.exists()) {  
-                    rankingList.innerHTML = '<p class="text-gray-500 text-center py-8">暂无数据</p>';  
-                    showLoading(false);  
-                    return;  
-                }  
-                
-                // 收集所有用户数据  
-                const users = [];  
-                const pointsUpdates = {}; // 用于批量更新缺少积分的用户  
-                
-                snapshot.forEach((childSnapshot) => {  
-                    const userData = childSnapshot.val();  
-                    const employeeId = userData.employee_id;  
-                    
-                    // 如果用户没有积分字段，初始化为0  
-                    let points = userData.points;  
-                    if (points === undefined || points === null) {  
-                        points = 0;  
-                        pointsUpdates[`users/${employeeId}/points`] = 0;  
-                    }  
-                    
-                    // 初始化签到字段  
-                    if (!userData.check_in_streak) {  
-                        pointsUpdates[`users/${employeeId}/check_in_streak`] = 0;  
-                    }  
-                    
-                    users.push({  
-                        employee_id: employeeId,  
-                        name: userData.name,  
-                        avatar_url: userData.avatar_url,  
-                        points: points,  
-                        check_in_streak: userData.check_in_streak || 0,  
-                        is_admin: userData.is_admin || false,  
-                        is_system_admin: userData.is_system_admin || false  
-                    });  
-                });  
-                
-                // 如果有需要更新的积分，批量更新  
-                if (Object.keys(pointsUpdates).length > 0) {  
-                    database.ref().update(pointsUpdates).then(() => {  
-                        console.log('已初始化缺少积分的用户');  
-                    });  
-                }  
-                
-                // 按积分降序排序  
-                users.sort((a, b) => b.points - a.points);  
-                
-                // 渲染排行榜  
-                const template = document.getElementById('rankItemTemplate');  
-                
-                users.forEach((user, index) => {  
-                    const rankItem = template.content.cloneNode(true).querySelector('.rank-item');  
-                    
-                    // 设置排名  
-                    const rankNumber = rankItem.querySelector('.rank-number');  
-                    if (index < 3) {  
-                        // 前三名显示奖牌  
-                        rankNumber.classList.add('rank-medal', `rank-${index + 1}`);  
-                        rankNumber.textContent = index + 1;  
-                    } else {  
-                        rankNumber.textContent = index + 1;  
-                    }  
-                    
-                    // 设置头像  
-                    if (user.avatar_url) {  
-                        rankItem.querySelector('.rank-avatar').src = user.avatar_url;  
-                    }  
-                    
-                    // 设置姓名  
-                    rankItem.querySelector('.rank-name').textContent = user.name;  
-                    
-                    // 设置工号  
-                    rankItem.querySelector('.rank-employee-id').textContent = `工号: ${user.employee_id}`;  
-                    
-                    // 设置连续签到天数  
-                    rankItem.querySelector('.rank-streak-days').textContent = user.check_in_streak;  
-                    
-                    // 显示管理员标识  
-                    if (user.is_system_admin) {  
-                        const badge = rankItem.querySelector('.rank-admin-badge');  
-                        badge.classList.remove('hidden', 'bg-red-500');  
-                        badge.classList.add('bg-purple-500');  
-                        badge.textContent = '系统管理员';  
-                    } else if (user.is_admin) {  
-                        rankItem.querySelector('.rank-admin-badge').classList.remove('hidden');  
-                    }  
-                    
-                    // 设置积分  
-                    rankItem.querySelector('.rank-points').textContent = user.points;  
-                    
-                    // 高亮当前用户  
-                    if (currentUser && user.employee_id === currentUser.employee_id) {  
-                        rankItem.classList.add('bg-blue-50', 'border-blue-400');  
-                    }  
-                    
-                    rankingList.appendChild(rankItem);  
-                });  
-                
-                showLoading(false);  
-            }).catch(error => {  
-                console.error('加载排行榜失败:', error);  
-                showToast('加载排行榜失败', false);  
-                showLoading(false);  
-            });  
-        }  
+            // 如果用户没有积分字段，初始化为0
+            let points = userData.points;
+            if (points === undefined || points === null) {
+                points = 0;
+                pointsUpdates[`users/${employeeId}/points`] = 0;
+            }
+            
+            users.push({
+                employee_id: employeeId,
+                name: userData.name,
+                avatar_url: userData.avatar_url,
+                points: points,
+                is_admin: userData.is_admin || false,
+                is_system_admin: userData.is_system_admin || false
+            });
+        });
+        
+        // 如果有需要更新的积分，批量更新
+        if (Object.keys(pointsUpdates).length > 0) {
+            database.ref().update(pointsUpdates).then(() => {
+                console.log('已初始化缺少积分的用户');
+            });
+        }
+        
+        // 按积分降序排序
+        users.sort((a, b) => b.points - a.points);
+        
+        // 渲染排行榜
+        const template = document.getElementById('rankItemTemplate');
+        
+        users.forEach((user, index) => {
+            const rankItem = template.content.cloneNode(true).querySelector('.rank-item');
+            
+            // 设置排名
+            const rankNumber = rankItem.querySelector('.rank-number');
+            if (index < 3) {
+                // 前三名显示奖牌
+                rankNumber.classList.add('rank-medal', `rank-${index + 1}`);
+                rankNumber.textContent = index + 1;
+            } else {
+                rankNumber.textContent = index + 1;
+            }
+            
+            // 设置头像
+            if (user.avatar_url) {
+                rankItem.querySelector('.rank-avatar').src = user.avatar_url;
+            }
+            
+            // 设置姓名
+            rankItem.querySelector('.rank-name').textContent = user.name;
+            
+            // 设置工号
+            rankItem.querySelector('.rank-employee-id').textContent = `工号: ${user.employee_id}`;
+            
+            // 显示管理员标识
+            if (user.is_system_admin) {
+                const badge = rankItem.querySelector('.rank-admin-badge');
+                badge.classList.remove('hidden', 'bg-red-500');
+                badge.classList.add('bg-purple-500');
+                badge.textContent = '系统管理员';
+            } else if (user.is_admin) {
+                rankItem.querySelector('.rank-admin-badge').classList.remove('hidden');
+            }
+            
+            // 设置积分
+            rankItem.querySelector('.rank-points').textContent = user.points;
+            
+            // 高亮当前用户
+            if (currentUser && user.employee_id === currentUser.employee_id) {
+                rankItem.classList.add('bg-blue-50', 'border-blue-400');
+            }
+            
+            rankingList.appendChild(rankItem);
+        });
+        
+        showLoading(false);
+    }).catch(error => {
+        console.error('加载排行榜失败:', error);
+        showToast('加载排行榜失败', false);
+        showLoading(false);
+    });
+}
 
-        // 设置积分排行榜实时监听  
-        function setupRankingListener() {  
-            database.ref('users').on('value', (snapshot) => {  
-                // 如果当前在排行榜页面，实时更新  
-                if (!document.getElementById('rankingSection').classList.contains('hidden')) {  
-                    loadRankingList();  
-                }  
+        // 设置积分排行榜实时监听
+        function setupRankingListener() {
+            database.ref('users').on('value', (snapshot) => {
+                // 如果当前在排行榜页面，实时更新
+                if (!document.getElementById('rankingSection').classList.contains('hidden')) {
+                    loadRankingList();
+                }
                 
-                // 如果是当前用户的积分变化，更新UI  
-                if (currentUser) {  
-                    database.ref(`users/${currentUser.employee_id}`).once('value').then((userSnapshot) => {  
-                        if (userSnapshot.exists()) {  
-                            const userData = userSnapshot.val();  
-                            currentUser.points = userData.points || 0;  
-                            currentUser.check_in_streak = userData.check_in_streak || 0;  
-                            currentUser.last_check_in_date = userData.last_check_in_date;  
-                            updatePointsUI();  
-                            updateCheckInUI();  
-                        }  
-                    });  
-                }  
-            });  
-        }  
+                // 如果是当前用户的积分变化，更新UI
+                if (currentUser) {
+                    database.ref(`users/${currentUser.employee_id}/points`).once('value').then((pointsSnapshot) => {
+                        if (pointsSnapshot.exists()) {
+                            currentUser.points = pointsSnapshot.val();
+                            updatePointsUI();
+                        }
+                    });
+                }
+            });
+        }
 
-        // ========== 页面加载完成后初始化 ==========  
+        // ========== 页面加载完成后初始化 ==========
 
-        document.addEventListener('DOMContentLoaded', () => {  
-            console.log('页面加载完成');  
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('页面加载完成');
             
-            // 初始化管理员列表  
-            initializeAdminList();  
+            // 初始化管理员列表
+            initializeAdminList();
             
-            // 检查登录状态  
-            checkLoginStatus();  
+            // 检查登录状态
+            checkLoginStatus();
 
-            // 登录和注册表单切换按钮  
-            document.getElementById('showRegisterBtn').addEventListener('click', () => {  
-                document.getElementById('loginContainer').classList.add('hidden');  
-                document.getElementById('registerContainer').classList.remove('hidden');  
-            });  
+            // 登录和注册表单切换按钮
+            document.getElementById('showRegisterBtn').addEventListener('click', () => {
+                document.getElementById('loginContainer').classList.add('hidden');
+                document.getElementById('registerContainer').classList.remove('hidden');
+            });
             
-            document.getElementById('showLoginBtn').addEventListener('click', () => {  
-                document.getElementById('registerContainer').classList.add('hidden');  
-                document.getElementById('loginContainer').classList.remove('hidden');  
-            });  
+            document.getElementById('showLoginBtn').addEventListener('click', () => {
+                document.getElementById('registerContainer').classList.add('hidden');
+                document.getElementById('loginContainer').classList.remove('hidden');
+            });
             
-            // 登录按钮  
-            document.getElementById('loginBtn').addEventListener('click', login);  
+            // 登录按钮
+            document.getElementById('loginBtn').addEventListener('click', login);
             
-            // 注册按钮  
-            document.getElementById('registerBtn').addEventListener('click', register);  
+            // 注册按钮
+            document.getElementById('registerBtn').addEventListener('click', register);
             
-            // 退出登录按钮  
-            document.getElementById('logoutBtn').addEventListener('click', logout);  
+            // 退出登录按钮
+            document.getElementById('logoutBtn').addEventListener('click', logout);
             
-            // 签到按钮  
-            document.getElementById('checkInBtn').addEventListener('click', dailyCheckIn);  
+            // 编辑信息按钮
+            document.getElementById('editProfileBtn').addEventListener('click', showEditProfileForm);
+            document.getElementById('cancelEditBtn').addEventListener('click', hideEditProfileForm);
             
-            // 编辑信息按钮  
-            document.getElementById('editProfileBtn').addEventListener('click', showEditProfileForm);  
-            document.getElementById('cancelEditBtn').addEventListener('click', hideEditProfileForm);  
-            
-            // 保存用户信息按钮  
-            document.getElementById('saveUserInfoBtn').addEventListener('click', updateUserInfo);  
+            // 保存用户信息按钮
+            document.getElementById('saveUserInfoBtn').addEventListener('click', updateUserInfo);
 
-            // 管理员面板按钮  
-            document.getElementById('adminPanelBtn').addEventListener('click', showAdminPanel);  
-            document.getElementById('closeAdminPanelBtn').addEventListener('click', hideAdminPanel);  
-            document.getElementById('addAdminBtn').addEventListener('click', addNewAdmin);  
+            // 管理员面板按钮
+            document.getElementById('adminPanelBtn').addEventListener('click', showAdminPanel);
+            document.getElementById('closeAdminPanelBtn').addEventListener('click', hideAdminPanel);
+            document.getElementById('addAdminBtn').addEventListener('click', addNewAdmin);
             
-            // 用户管理按钮  
-            document.getElementById('userManagementBtn').addEventListener('click', showUserManagement);  
-            document.getElementById('closeUserManagementBtn').addEventListener('click', hideUserManagement);  
+            // 用户管理按钮
+            document.getElementById('userManagementBtn').addEventListener('click', showUserManagement);
+            document.getElementById('closeUserManagementBtn').addEventListener('click', hideUserManagement);
 
-            // 板块切换  
-            document.querySelectorAll('.section-btn').forEach(btn => {  
-                btn.addEventListener('click', () => {  
-                    const sectionId = btn.dataset.section;  
+            // 板块切换
+            document.querySelectorAll('.section-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const sectionId = btn.dataset.section;
                     
-                    // 更新按钮样式  
-                    document.querySelectorAll('.section-btn').forEach(b => {  
-                        if (b.dataset.section === sectionId) {  
-                            b.classList.add('bg-blue-500', 'text-white');  
-                            b.classList.remove('bg-gray-200');  
-                        } else {  
-                            b.classList.remove('bg-blue-500', 'text-white');  
-                            b.classList.add('bg-gray-200');  
-                        }  
-                    });  
+                    // 更新按钮样式
+                    document.querySelectorAll('.section-btn').forEach(b => {
+                        if (b.dataset.section === sectionId) {
+                            b.classList.add('bg-blue-500', 'text-white');
+                            b.classList.remove('bg-gray-200');
+                        } else {
+                            b.classList.remove('bg-blue-500', 'text-white');
+                            b.classList.add('bg-gray-200');
+                        }
+                    });
                     
-                    // 显示对应板块内容  
-                    document.querySelectorAll('.section-content').forEach(content => {  
-                        content.classList.add('hidden');  
-                        if (content.id === `${sectionId}Section`) {  
-                            content.classList.remove('hidden');  
+                    // 显示对应板块内容
+                    document.querySelectorAll('.section-content').forEach(content => {
+                        content.classList.add('hidden');
+                        if (content.id === `${sectionId}Section`) {
+                            content.classList.remove('hidden');
                             
-                            // 如果切换到排行榜，加载排行榜数据  
-                            if (sectionId === 'ranking') {  
-                                loadRankingList();  
-                            }  
-                        }  
-                    });  
-                });  
-            });  
+                            // 如果切换到排行榜，加载排行榜数据
+                            if (sectionId === 'ranking') {
+                                loadRankingList();
+                            }
+                        }
+                    });
+                });
+            });
 
-            // 发布帖子  
-            document.getElementById('techPostBtn').addEventListener('click', () => createPost('tech'));  
-            document.getElementById('dailyPostBtn').addEventListener('click', () => createPost('daily'));  
+            // 发布帖子
+            document.getElementById('techPostBtn').addEventListener('click', () => createPost('tech'));
+            document.getElementById('dailyPostBtn').addEventListener('click', () => createPost('daily'));
 
-            // 更换头像  
-            document.getElementById('changeAvatarBtn').addEventListener('click', () =>   
-                document.getElementById('avatarInput').click()  
-            );  
-            document.getElementById('avatarInput').addEventListener('change', updateAvatar);  
+            // 更换头像
+            document.getElementById('changeAvatarBtn').addEventListener('click', () => 
+                document.getElementById('avatarInput').click()
+            );
+            document.getElementById('avatarInput').addEventListener('change', updateAvatar);
             
-            // 初始化系统管理员账号  
-            addInitialSystemAdmin();  
-        });  
+            // 初始化系统管理员账号
+            addInitialSystemAdmin();
+        });
         
-        // 初始化系统管理员账号  
-        function addInitialSystemAdmin() {  
-            database.ref('users/admin001').once('value').then((snapshot) => {  
-                if (!snapshot.exists()) {  
-                    console.log('创建系统管理员账号');  
+        // 初始化系统管理员账号
+        function addInitialSystemAdmin() {
+            database.ref('users/admin001').once('value').then((snapshot) => {
+                if (!snapshot.exists()) {
+                    console.log('创建系统管理员账号');
                     
-                    const adminUser = {  
-                        id: "admin001",  
-                        name: "系统管理员",  
-                        employee_id: "admin001",  
-                        password_hash: "QJEzWGpBYm1YQXg6N2NkY2UxYmQ4YzNkMzU3YWQwNjc5YTc4YjIxNGE0NDZhNDI5MmY4MDQwNzg0YTcwNTQzZjNhOTE2NzQyZDA3Yw==",  
-                        avatar_url: "https://via.placeholder.com/100",  
-                        is_admin: true,  
-                        is_system_admin: true,  
-                        points: 0,  
-                        check_in_streak: 0,  
-                        last_check_in_date: null,  
-                        created_at: new Date().toISOString()  
-                    };  
+                    const adminUser = {
+                        id: "admin001",
+                        name: "系统管理员",
+                        employee_id: "admin001",
+                        password_hash: "QJEzWGpBYm1YQXg6N2NkY2UxYmQ4YzNkMzU3YWQwNjc5YTc4YjIxNGE0NDZhNDI5MmY4MDQwNzg0YTcwNTQzZjNhOTE2NzQyZDA3Yw==",
+                        avatar_url: "https://via.placeholder.com/100",
+                        is_admin: true,
+                        is_system_admin: true,
+                        points: 0, // 初始化积分
+                        created_at: new Date().toISOString()
+                    };
                     
-                    database.ref('users/admin001').set(adminUser);  
-                    database.ref('admins/admin001').set(true);  
-                }  
-            });  
-        }  
+                    database.ref('users/admin001').set(adminUser);
+                    database.ref('admins/admin001').set(true);
+                }
+            });
+        }
         
-        // 检查登录状态  
-        function checkLoginStatus() {  
-            const sessionData = localStorage.getItem('userSession');  
-            if (sessionData) {  
-                try {  
-                    const session = JSON.parse(sessionData);  
-                    const now = new Date().getTime();  
-                    if (session.expires > now) {  
-                        database.ref(`users/${session.employee_id}`).once('value').then((snapshot) => {  
-                            if (snapshot.exists()) {  
-                                currentUser = snapshot.val();  
-                                checkAndUpdateAdminStatus();  
+        // 检查登录状态
+        function checkLoginStatus() {
+            const sessionData = localStorage.getItem('userSession');
+            if (sessionData) {
+                try {
+                    const session = JSON.parse(sessionData);
+                    const now = new Date().getTime();
+                    if (session.expires > now) {
+                        database.ref(`users/${session.employee_id}`).once('value').then((snapshot) => {
+                            if (snapshot.exists()) {
+                                currentUser = snapshot.val();
+                                checkAndUpdateAdminStatus();
                                 
-                                addInitialPostsIfNeeded();  
-                                setupRealTimeListeners();  
-                                setupRankingListener();  
+                                addInitialPostsIfNeeded();
+                                setupRealTimeListeners();
+                                setupRankingListener(); // 设置排行榜监听
                                 
-                                showMainUI();  
-                                updateCheckInUI(); // 更新签到按钮状态  
-                            } else {  
-                                logout();  
-                            }  
-                        });  
-                    } else {  
-                        logout();  
-                    }  
-                } catch (error) {  
-                    console.error('解析会话数据出错:', error);  
-                    logout();  
-                }  
-            } else {  
-                document.getElementById('loginContainer').classList.remove('hidden');  
-                document.getElementById('mainContainer').classList.add('hidden');  
-                document.getElementById('adminPanelContainer').classList.add('hidden');  
-                document.getElementById('userInfoContainer').classList.add('hidden');  
-                document.getElementById('userManagementContainer').classList.add('hidden');  
-                document.getElementById('userNav').classList.add('hidden');  
-            }  
-        }  
+                                showMainUI();
+                            } else {
+                                logout();
+                            }
+                        });
+                    } else {
+                        logout();
+                    }
+                } catch (error) {
+                    console.error('解析会话数据出错:', error);
+                    logout();
+                }
+            } else {
+                document.getElementById('loginContainer').classList.remove('hidden');
+                document.getElementById('mainContainer').classList.add('hidden');
+                document.getElementById('adminPanelContainer').classList.add('hidden');
+                document.getElementById('userInfoContainer').classList.add('hidden');
+                document.getElementById('userManagementContainer').classList.add('hidden');
+                document.getElementById('userNav').classList.add('hidden');
+            }
+        }
         
-        // 登录  
-        function login() {  
-            const employeeId = document.getElementById('loginEmployeeId').value.trim();  
-            const password = document.getElementById('loginPassword').value;  
+        // 登录
+        function login() {
+            const employeeId = document.getElementById('loginEmployeeId').value.trim();
+            const password = document.getElementById('loginPassword').value;
             
-            if (!employeeId || !password) {  
-                showToast('请输入工号和密码', false);  
-                return;  
-            }  
+            if (!employeeId || !password) {
+                showToast('请输入工号和密码', false);
+                return;
+            }
             
-            showLoading(true);  
+            showLoading(true);
             
-            // 系统管理员特殊处理  
-            if (employeeId === 'admin001' && password === 'admin123') {  
-                database.ref(`users/admin001`).once('value').then((snapshot) => {  
-                    if (snapshot.exists()) {  
-                        currentUser = snapshot.val();  
-                        isAdmin = true;  
-                        isSystemAdmin = true;  
+            // 系统管理员特殊处理
+            if (employeeId === 'admin001' && password === 'admin123') {
+                database.ref(`users/admin001`).once('value').then((snapshot) => {
+                    if (snapshot.exists()) {
+                        currentUser = snapshot.val();
+                        isAdmin = true;
+                        isSystemAdmin = true;
                         
-                        const session = {  
-                            employee_id: employeeId,  
-                            expires: new Date().getTime() + (24 * 60 * 60 * 1000)  
-                        };  
-                        localStorage.setItem('userSession', JSON.stringify(session));  
+                        const session = {
+                            employee_id: employeeId,
+                            expires: new Date().getTime() + (24 * 60 * 60 * 1000)
+                        };
+                        localStorage.setItem('userSession', JSON.stringify(session));
                         
-                        document.getElementById('loginEmployeeId').value = '';  
-                        document.getElementById('loginPassword').value = '';  
+                        document.getElementById('loginEmployeeId').value = '';
+                        document.getElementById('loginPassword').value = '';
                         
-                        addInitialPostsIfNeeded();  
-                        setupRealTimeListeners();  
-                        setupRankingListener();  
+                        addInitialPostsIfNeeded();
+                        setupRealTimeListeners();
+                        setupRankingListener(); // 设置排行榜监听
                         
-                        showMainUI();  
-                        updateCheckInUI();  
-                        showToast('系统管理员登录成功');  
-                    } else {  
-                        addInitialSystemAdmin();  
-                        showToast('已初始化系统，请再次登录', false);  
-                    }  
-                    showLoading(false);  
-                }).catch(error => {  
-                    console.error('系统管理员登录出错:', error);  
-                    showToast('登录失败: ' + error.message, false);  
-                    showLoading(false);  
-                });  
-                return;  
-            }  
+                        showMainUI();
+                        showToast('系统管理员登录成功');
+                    } else {
+                        addInitialSystemAdmin();
+                        showToast('已初始化系统，请再次登录', false);
+                    }
+                    showLoading(false);
+                }).catch(error => {
+                    console.error('系统管理员登录出错:', error);
+                    showToast('登录失败: ' + error.message, false);
+                    showLoading(false);
+                });
+                return;
+            }
             
-            // 普通用户登录  
-            database.ref(`users/${employeeId}`).once('value').then((snapshot) => {  
-                if (snapshot.exists()) {  
-                    const userData = snapshot.val();  
+            // 普通用户登录
+            database.ref(`users/${employeeId}`).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
                     
-                    if (verifyPassword(password, userData.password_hash)) {  
-                        currentUser = userData;  
+                    if (verifyPassword(password, userData.password_hash)) {
+                        currentUser = userData;
                         
-                        const session = {  
-                            employee_id: employeeId,  
-                            expires: new Date().getTime() + (24 * 60 * 60 * 1000)  
-                        };  
-                        localStorage.setItem('userSession', JSON.stringify(session));  
+                        const session = {
+                            employee_id: employeeId,
+                            expires: new Date().getTime() + (24 * 60 * 60 * 1000)
+                        };
+                        localStorage.setItem('userSession', JSON.stringify(session));
                         
-                        checkAndUpdateAdminStatus();  
+                        checkAndUpdateAdminStatus();
                         
-                        document.getElementById('loginEmployeeId').value = '';  
-                        document.getElementById('loginPassword').value = '';  
+                        document.getElementById('loginEmployeeId').value = '';
+                        document.getElementById('loginPassword').value = '';
                         
-                        addInitialPostsIfNeeded();  
-                        setupRealTimeListeners();  
-                        setupRankingListener();  
+                        addInitialPostsIfNeeded();
+                        setupRealTimeListeners();
+                        setupRankingListener(); // 设置排行榜监听
                         
-                        showMainUI();  
-                        updateCheckInUI();  
-                        showToast('登录成功');  
-                    } else {  
-                        showToast('密码错误', false);  
-                    }  
-                } else {  
-                    showToast('该工号尚未注册', false);  
-                }  
-                showLoading(false);  
-            }).catch(error => {  
-                console.error('登录出错:', error);  
-                showToast('登录失败: ' + error.message, false);  
-                showLoading(false);  
-            });  
-        }  
+                        showMainUI();
+                        showToast('登录成功');
+                    } else {
+                        showToast('密码错误', false);
+                    }
+                } else {
+                    showToast('该工号尚未注册', false);
+                }
+                showLoading(false);
+            }).catch(error => {
+                console.error('登录出错:', error);
+                showToast('登录失败: ' + error.message, false);
+                showLoading(false);
+            });
+        }
         
-        // 注册  
-        async function register() {  
-            const name = document.getElementById('registerName').value.trim();  
-            const employeeId = document.getElementById('registerEmployeeId').value.trim();  
-            const password = document.getElementById('registerPassword').value;  
-            const confirmPassword = document.getElementById('confirmPassword').value;  
-            const avatarFile = document.getElementById('registerAvatar').files[0];  
+        // 注册
+        async function register() {
+            const name = document.getElementById('registerName').value.trim();
+            const employeeId = document.getElementById('registerEmployeeId').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const avatarFile = document.getElementById('registerAvatar').files[0];
             
-            if (!name || !employeeId || !password) {  
-                showToast('请填写所有必填字段', false);  
-                return;  
-            }  
+            if (!name || !employeeId || !password) {
+                showToast('请填写所有必填字段', false);
+                return;
+            }
             
-            if (password !== confirmPassword) {  
-                showToast('两次输入的密码不一致', false);  
-                return;  
-            }  
+            if (password !== confirmPassword) {
+                showToast('两次输入的密码不一致', false);
+                return;
+            }
             
-            if (password.length < 6) {  
-                showToast('密码长度至少6位', false);  
-                return;  
-            }  
+            if (password.length < 6) {
+                showToast('密码长度至少6位', false);
+                return;
+            }
             
-            showLoading(true);  
+            showLoading(true);
             
-            try {  
-                const snapshot = await database.ref(`users/${employeeId}`).once('value');  
-                if (snapshot.exists()) {  
-                    showToast('该工号已被注册', false);  
-                    showLoading(false);  
-                    return;  
-                }  
+            try {
+                const snapshot = await database.ref(`users/${employeeId}`).once('value');
+                if (snapshot.exists()) {
+                    showToast('该工号已被注册', false);
+                    showLoading(false);
+                    return;
+                }
                 
-                let avatarUrl = 'https://via.placeholder.com/100';  
-                if (avatarFile) {  
-                    const compressedFile = await compressImage(avatarFile);  
-                    avatarUrl = await uploadImageToImgBB(compressedFile);  
-                    if (!avatarUrl) {  
-                        showToast('头像上传失败，使用默认头像', false);  
-                        avatarUrl = 'https://via.placeholder.com/100';  
-                    }  
-                }  
+                let avatarUrl = 'https://via.placeholder.com/100';
+                if (avatarFile) {
+                    const compressedFile = await compressImage(avatarFile);
+                    avatarUrl = await uploadImageToImgBB(compressedFile);
+                    if (!avatarUrl) {
+                        showToast('头像上传失败，使用默认头像', false);
+                        avatarUrl = 'https://via.placeholder.com/100';
+                    }
+                }
                 
-                const userId = generateId();  
-                const passwordHash = hashPassword(password);  
+                const userId = generateId();
+                const passwordHash = hashPassword(password);
                 
-                const newUser = {  
-                    id: userId,  
-                    name: name,  
-                    employee_id: employeeId,  
+                const newUser = {
+                    id: userId,
+                    name: name,
+                    employee_id: employeeId,
                     password_hash: passwordHash,
                     avatar_url: avatarUrl,
                     is_admin: false,
                     is_system_admin: false,
-                    points: 0,
-                    check_in_streak: 0,
-                    last_check_in_date: null,
+                    points: 0, // 初始化积分为0
                     created_at: new Date().toISOString()
                 };
                 
@@ -1525,7 +1300,7 @@
                 userTable.innerHTML = '';
                 
                 if (!snapshot.exists()) {
-                    userTable.innerHTML = '<tr><td colspan="7" class="py-2 px-4 text-center">暂无用户数据</td></tr>';
+                    userTable.innerHTML = '<tr><td colspan="6" class="py-2 px-4 text-center">暂无用户数据</td></tr>';
                     showLoading(false);
                     return;
                 }
@@ -1555,12 +1330,6 @@
                     pointsCell.className = 'py-2 px-4 border-b border-gray-200 font-bold text-yellow-600';
                     pointsCell.textContent = user.points || 0;
                     row.appendChild(pointsCell);
-                    
-                    // 连续签到列
-                    const streakCell = document.createElement('td');
-                    streakCell.className = 'py-2 px-4 border-b border-gray-200';
-                    streakCell.innerHTML = `<span class="text-orange-600">🔥 ${user.check_in_streak || 0} 天</span>`;
-                    row.appendChild(streakCell);
                     
                     const timeCell = document.createElement('td');
                     timeCell.className = 'py-2 px-4 border-b border-gray-200';
@@ -1864,7 +1633,7 @@
             }
         }
 
-        // 创建帖子
+        // ========== 修改：创建帖子时增加积分 ==========
         async function createPost(section) {
             if (!currentUser) {
                 showToast('请先登录', false);
@@ -2029,7 +1798,7 @@
             return postElement;
         }
 
-        // 附加帖子事件
+        // ========== 修改：置顶时增加积分 ==========
         function attachPostEvents() {
             // 点赞事件
             document.querySelectorAll('.like-btn').forEach(btn => {
@@ -2072,7 +1841,7 @@
                 });
             });
             
-            // 置顶事件
+            // 置顶事件 - 增加积分奖励
             document.querySelectorAll('.pin-btn').forEach(btn => {
                 btn.addEventListener('click', event => {
                     if (!isAdmin) return;
@@ -2080,12 +1849,15 @@
                     const postElement = event.currentTarget.closest('.post');
                     const postId = postElement.dataset.id;
                     
+                    // 获取帖子作者
                     database.ref(`posts/${postId}`).once('value').then((snapshot) => {
                         if (snapshot.exists()) {
                             const post = snapshot.val();
                             
+                            // 更新置顶状态
                             database.ref(`posts/${postId}/is_pinned`).set(true)
                                 .then(async () => {
+                                    // 给帖子作者增加5分
                                     await addUserPoints(post.author_employee_id, 5, '帖子被置顶');
                                     showToast('帖子已置顶，作者获得5积分奖励！');
                                 })
@@ -2137,7 +1909,7 @@
                 });
             });
             
-            // 发送回复事件
+            // ========== 修改：发送回复时增加积分 ==========
             document.querySelectorAll('.send-reply-btn').forEach(btn => {
                 btn.addEventListener('click', event => {
                     if (!currentUser) return;
@@ -2166,6 +1938,7 @@
                     
                     database.ref('replies/' + replyId).set(newReply)
                         .then(async () => {
+                            // 回复增加5分
                             await addUserPoints(currentUser.employee_id, 5, '回帖');
                             
                             replyInput.value = '';
