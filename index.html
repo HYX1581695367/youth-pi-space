@@ -342,13 +342,13 @@
     <script>
         // Firebase Configuration (Replace with your actual Firebase config)
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            databaseURL: "YOUR_DATABASE_URL",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyC19CX0gSWAzvFevy43EQRy4uX1A265LuM",
+            authDomain: "youth-pi-space.firebaseapp.com",
+            databaseURL: "https://youth-pi-space-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "youth-pi-space",
+            storageBucket: "youth-pi-space.firebasestorage.app",
+            messagingSenderId: "895213716516",
+            appId: "1:895213716516:web:9548b7964aaf3074b504b1"
         };
 
         // Initialize Firebase
@@ -1760,90 +1760,3 @@
     </script>
 </body>
 </html>
-```
-```javascript
-// NEW: Check-in and Points Feature
-async function checkIn() {
-    if (!currentUser) {
-        showToast("请先登录才能签到！", false);
-        return;
-    }
-
-    showLoading();
-    const today = new Date().toDateString(); // e.g., "Wed Oct 29 2025"
-
-    if (currentUser.lastCheckInDate === today) {
-        hideLoading();
-        showToast("您今天已经签到过了，请明天再来！", false);
-        return;
-    }
-
-    // Update user's points and lastCheckInDate
-    const newPoints = (currentUser.points || 0) + 5;
-    await usersRef.child(currentUser.id).update({
-        points: newPoints,
-        lastCheckInDate: today
-    });
-
-    // Update current user in session
-    currentUser.points = newPoints;
-    currentUser.lastCheckInDate = today;
-    saveSession(currentUser); // Re-save session to reflect updated points
-
-    hideLoading();
-    showToast(`签到成功！您获得了5积分，当前积分: ${newPoints}`);
-    updateCheckInButtonState(); // Update button state after successful check-in
-}
-
-function updateCheckInButtonState() {
-    if (currentUser) {
-        const today = new Date().toDateString();
-        if (currentUser.lastCheckInDate === today) {
-            checkInButton.textContent = "已签到";
-            checkInButton.disabled = true;
-            checkInButton.classList.remove('bg-green-500', 'hover:bg-green-600');
-            checkInButton.classList.add('bg-gray-400', 'cursor-not-allowed');
-        } else {
-            checkInButton.textContent = "签到";
-            checkInButton.disabled = false;
-            checkInButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
-            checkInButton.classList.add('bg-green-500', 'hover:bg-green-600');
-        }
-    } else {
-        checkInButton.classList.add('hidden'); // Hide if not logged in
-    }
-}
-
-// Ensure points are initialized for new users and system admin
-// In register() function:
-// await newUserRef.set({
-//     name,
-//     employeeId,
-//     password: hashPassword(password),
-//     avatar: avatarUrl,
-//     isAdmin: false,
-//     isSystemAdmin: false,
-//     points: 0, // New: Initialize points for new users
-//     lastCheckInDate: null // New: Initialize lastCheckInDate
-// });
-
-// In System Admin initialization:
-// await systemAdminRef.set({
-//     name: "系统管理员",
-//     employeeId: SYSTEM_ADMIN_EMPLOYEE_ID,
-//     password: hashPassword("admin123"),
-//     avatar: "https://via.placeholder.com/150/FF0000/FFFFFF?text=SA",
-//     isAdmin: true,
-//     isSystemAdmin: true,
-//     points: 0, // System admin also has points
-//     lastCheckInDate: null
-// });
-
-// Update where points are displayed in UI:
-// Navigation bar: <span id="userPointsDisplay" class="text-white text-lg font-semibold mr-4 hidden">积分: 0</span>
-// User Profile Section: <p id="userProfilePoints" class="text-indigo-600 font-semibold mt-1">积分: 0</p>
-// User Management Table: Add a new column for points.
-
-// Add event listener for check-in button in DOMContentLoaded
-// checkInButton.addEventListener('click', checkIn);
-```
