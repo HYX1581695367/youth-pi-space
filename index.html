@@ -2,2414 +2,301 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>装备部件团支部青年π空间</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    
-    <!-- 密码哈希库 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    
-    <!-- 改进的样式 -->
-    <style>
-        .hidden {
-            display: none !important;
-        }
-        
-        /* 增强移动端图片显示兼容性 */
-        @media (max-width: 768px) {
-            .post-image-container:not(.hidden) {
-                display: block !important;
-                width: 100% !important;
-                text-align: center !important;
-                margin-bottom: 1rem !important;
-            }
-            
-            .post-image {
-                max-width: 100% !important;
-                height: auto !important;
-                max-height: 300px !important;
-                object-fit: contain !important;
-                display: inline-block !important;
-            }
-        }
-        
-        /* 签到按钮动画 */
-        @keyframes checkin-success {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
-        }
-        
-        .checkin-success {
-            animation: checkin-success 0.5s ease-in-out;
-        }
-        
-        /* 积分变化动画 */
-        .points-change {
-            animation: points-change 0.5s ease-in-out;
-        }
-        
-        @keyframes points-change {
-            0% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0); }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>装备部件团支部青年π空间</title>
+<style>
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  background: #f7f9fc;
+  color: #222;
+}
+header {
+  background: #4e73df;
+  color: white;
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+nav button {
+  background: #f8f9fc;
+  color: #333;
+  border: none;
+  margin: 2px 5px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+nav button:hover {
+  background: #dce1f7;
+}
+.hidden { display: none; }
+.container {
+  padding: 15px;
+}
+.post {
+  background: white;
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+.reply {
+  background: #f2f4f8;
+  margin: 5px;
+  padding: 5px 10px;
+  border-radius: 3px;
+}
+.badge {
+  background: #ffcc00;
+  color: #333;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+  margin-left: 6px;
+}
+.scoreboard {
+  background: white;
+  border-radius: 5px;
+  padding: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+table th, table td {
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+.highlight {
+  background: #fff3cd;
+}
+button.excellent {
+  background-color: #ffc107;
+  color: #333;
+}
+</style>
 </head>
-<body class="bg-gray-100">
-    <div class="min-h-screen flex flex-col">
-        <!-- 导航栏 -->
-        <nav class="bg-blue-600 text-white shadow-lg">
-            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-                <h1 class="text-2xl font-bold">装备部件团支部青年π空间</h1>
-                <div id="userNav" class="hidden">
-                    <div class="flex items-center space-x-3">
-                        <img id="navUserAvatar" class="w-8 h-8 rounded-full object-cover" src="https://via.placeholder.com/32" alt="用户头像">
-                        <span id="navUserName">加载中...</span>
-                        <!-- 积分显示 -->
-                        <div class="flex items-center space-x-1 bg-yellow-500 text-white px-3 py-1 rounded-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span id="navUserPoints" class="font-bold">0</span>
-                        </div>
-                        <!-- 签到按钮 -->
-                        <button id="checkinBtn" class="px-3 py-1 bg-green-500 rounded hover:bg-green-600">
-                            <span id="checkinText">签到 +5</span>
-                        </button>
-                        <button id="editProfileBtn" class="px-3 py-1 bg-blue-500 rounded hover:bg-blue-600">编辑信息</button>
-                        <!-- 用户管理按钮（仅系统管理员可见） -->
-                        <button id="userManagementBtn" class="hidden px-3 py-1 bg-purple-500 rounded hover:bg-purple-600">用户管理</button>
-                        <!-- 管理员设置按钮（所有管理员可见） -->
-                        <button id="adminPanelBtn" class="hidden px-3 py-1 bg-red-500 rounded hover:bg-red-600">管理设置</button>
-                        <button id="logoutBtn" class="px-3 py-1 bg-gray-500 rounded hover:bg-gray-600">退出登录</button>
-                    </div>
-                </div>
-            </div>
-        </nav>
 
-        <!-- 主内容区 -->
-        <div class="container mx-auto px-4 py-6 flex-grow">
-            <!-- 登录表单 -->
-            <div id="loginContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10">
-                <h2 class="text-xl font-semibold mb-4 text-center">登录青年π空间</h2>
-                <p class="text-gray-600 mb-6 text-center">请输入您的工号和密码</p>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-gray-700 mb-1">工号</label>
-                        <input id="loginEmployeeId" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入工号">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-1">密码</label>
-                        <input id="loginPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入密码">
-                    </div>
-                    <div class="flex justify-center">
-                        <button id="loginBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">登录</button>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-gray-600">首次使用? <button id="showRegisterBtn" class="text-blue-500 hover:underline">注册新账号</button></p>
-                    </div>
-                </div>
-            </div>
+<body>
+<header>
+  <div><strong>装备部件团支部青年π空间</strong></div>
+  <nav>
+    <button id="nav-home">首页</button>
+    <button id="nav-tech">技术问题</button>
+    <button id="nav-daily">日常问题</button>
+    <button id="nav-points">积分榜</button>
+    <button id="nav-profile">个人中心</button>
+    <button id="logoutBtn">退出</button>
+  </nav>
+</header>
 
-            <!-- 注册表单 -->
-            <div id="registerContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10 hidden">
-                <h2 class="text-xl font-semibold mb-4 text-center">注册新账号</h2>
-                <p class="text-gray-600 mb-6 text-center">首次使用工号需要注册</p>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-gray-700 mb-1">姓名</label>
-                        <input id="registerName" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入姓名">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-1">工号</label>
-                        <input id="registerEmployeeId" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入工号">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-1">设置密码</label>
-                        <input id="registerPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请设置密码">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-1">确认密码</label>
-                        <input id="confirmPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请再次输入密码">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-1">头像</label>
-                        <input id="registerAvatar" type="file" accept="image/*" class="w-full">
-                    </div>
-                    <div class="flex justify-center">
-                        <button id="registerBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">注册账号</button>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-gray-600">已有账号? <button id="showLoginBtn" class="text-blue-500 hover:underline">返回登录</button></p>
-                    </div>
-                </div>
-            </div>
+<div class="container" id="content"></div>
 
-            <!-- 修改用户信息表单 -->
-            <div id="userInfoContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10 hidden">
-                <h2 class="text-xl font-semibold mb-4 text-center">编辑个人信息</h2>
-                <p class="text-gray-600 mb-6 text-center">您可以修改个人信息</p>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-gray-700 mb-1">姓名</label>
-                        <input id="userName" type="text" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请输入姓名">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-1">头像</label>
-                        <input id="userAvatar" type="file" accept="image/*" class="w-full">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-1">修改密码 (留空则不修改)</label>
-                        <input id="newPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入新密码">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-1">确认新密码</label>
-                        <input id="confirmNewPassword" type="password" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="再次输入新密码">
-                    </div>
-                    <div class="flex justify-center space-x-3">
-                        <button id="saveUserInfoBtn" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">保存修改</button>
-                        <button id="cancelEditBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">取消</button>
-                    </div>
-                </div>
-            </div>
+<script type="module">
+// ============ Firebase 初始化 ===============
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, setDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
-            <!-- 管理员面板 -->
-            <div id="adminPanelContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10 hidden">
-                <h2 class="text-xl font-semibold mb-4 text-center">管理员设置</h2>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-gray-700 mb-1">添加管理员工号</label>
-                        <div class="flex">
-                            <input id="newAdminId" type="text" class="flex-grow px-4 py-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入工号">
-                            <button id="addAdminBtn" class="px-4 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600">添加</button>
-                        </div>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold mb-2">当前管理员列表</h3>
-                        <div id="adminList" class="space-y-2 max-h-60 overflow-y-auto p-2 border rounded">
-                            <p class="text-gray-500 text-center">加载中...</p>
-                        </div>
-                    </div>
-                    <div class="flex justify-center">
-                        <button id="closeAdminPanelBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">关闭</button>
-                    </div>
-                </div>
-            </div>
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
 
-            <!-- 用户管理面板 - 仅系统管理员可见 -->
-            <div id="userManagementContainer" class="bg-white shadow-md rounded-lg p-6 max-w-4xl mx-auto my-10 hidden">
-                <h2 class="text-xl font-semibold mb-4 text-center">用户管理</h2>
-                <div class="space-y-4">
-                    <div class="overflow-auto">
-                        <table class="min-w-full bg-white">
-                            <thead>
-                                <tr>
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">工号</th>
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">姓名</th>
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">积分</th>
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">注册时间</th>
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">管理员</th>
-                                    <th class="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="userTable">
-                                <!-- 用户数据将在这里动态填充 -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="flex justify-center">
-                        <button id="closeUserManagementBtn" class="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">关闭</button>
-                    </div>
-                </div>
-            </div>
+// =============== 全局状态 ==================
+let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
 
-            <!-- 主要内容区 -->
-            <div id="mainContainer" class="hidden">
-                <!-- 板块导航 -->
-                <div class="bg-white shadow-md rounded-lg p-4 mb-6">
-                    <div class="flex space-x-4">
-                        <button data-section="tech" class="section-btn px-4 py-2 rounded bg-blue-500 text-white">技术问题板块</button>
-                        <button data-section="daily" class="section-btn px-4 py-2 rounded bg-gray-200">日常问题板块</button>
-                        <button data-section="user" class="section-btn px-4 py-2 rounded bg-gray-200">用户板块</button>
-                        <button data-section="ranking" class="section-btn px-4 py-2 rounded bg-gray-200">积分排行</button>
-                    </div>
-                </div>
+// =============== 工具函数 =================
+async function modifyPoints(userId, delta) {
+  const ref = doc(db, "users", userId);
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    const data = snap.data();
+    const newPoints = (data.points || 0) + delta;
+    await updateDoc(ref, { points: newPoints });
+    if (currentUser && currentUser.id === userId) {
+      currentUser.points = newPoints;
+      localStorage.setItem("currentUser", JSON.stringify(currentUser));
+    }
+  }
+}
 
-                <!-- 技术问题和日常问题板块 -->
-                <div id="techSection" class="section-content">
-                    <h2 class="text-xl font-bold mb-4">技术问题板块</h2>
-                    <div class="post-form bg-white shadow-md rounded-lg p-4 mb-6">
-                        <textarea id="techPostContent" class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3" rows="3" placeholder="分享你的技术问题..."></textarea>
-                        <div class="flex items-center mb-3">
-                            <label class="mr-2 text-gray-600">添加图片:</label>
-                            <input id="techPostImage" type="file" accept="image/*">
-                        </div>
-                        <button id="techPostBtn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">发布</button>
-                        <span class="ml-2 text-green-600 text-sm">发布技术帖子 +12积分</span>
-                    </div>
-                    <div id="techPosts" class="space-y-6"></div>
-                </div>
+// =============== 页面组件 =================
+async function renderHome() {
+  document.getElementById('content').innerHTML = `
+    <h2>欢迎回来，${currentUser.name}</h2>
+    <p>请选择上方板块浏览帖子或发布新内容。</p>
+  `;
+}
 
-                <div id="dailySection" class="section-content hidden">
-                    <h2 class="text-xl font-bold mb-4">日常问题板块</h2>
-                    <div class="post-form bg-white shadow-md rounded-lg p-4 mb-6">
-                        <textarea id="dailyPostContent" class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3" rows="3" placeholder="分享你的日常问题..."></textarea>
-                        <div class="flex items-center mb-3">
-                            <label class="mr-2 text-gray-600">添加图片:</label>
-                            <input id="dailyPostImage" type="file" accept="image/*">
-                        </div>
-                        <button id="dailyPostBtn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">发布</button>
-                        <span class="ml-2 text-green-600 text-sm">发布日常帖子 +8积分</span>
-                    </div>
-                    <div id="dailyPosts" class="space-y-6"></div>
-                </div>
+async function renderProfile() {
+  const ref = doc(db, "users", currentUser.id);
+  const s = await getDoc(ref);
+  if (s.exists()) {
+    currentUser = { ...s.data(), id: currentUser.id };
+    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+  }
+  const today = new Date().toISOString().split('T')[0];
+  const checkedIn = currentUser.lastCheckInDate === today;
+  document.getElementById('content').innerHTML = `
+    <h2>个人中心</h2>
+    <p><strong>姓名：</strong>${currentUser.name}</p>
+    <p><strong>工号：</strong>${currentUser.jobId}</p>
+    <p><strong>角色：</strong>${currentUser.role}</p>
+    <p><strong>当前积分：</strong>${currentUser.points || 0}</p>
+    <button id="checkInBtn" ${checkedIn ? "disabled" : ""}>${checkedIn ? "今日已签到" : "签到 +5"}</button>
+  `;
+  document.getElementById('checkInBtn').onclick = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    if (currentUser.lastCheckInDate === today) {
+      alert("今日已签到");
+      return;
+    }
+    await modifyPoints(currentUser.id, 5);
+    await updateDoc(ref, { lastCheckInDate: today });
+    alert("签到成功 +5 分！");
+    renderProfile();
+  };
+}
 
-                <!-- 用户板块 -->
-                <div id="userSection" class="section-content hidden">
-                    <h2 class="text-xl font-bold mb-4">个人中心</h2>
-                    <div class="bg-white shadow-md rounded-lg p-6 mb-6">
-                        <div class="flex items-center space-x-4 mb-6">
-                            <div class="relative group">
-                                <img id="profileAvatar" class="w-20 h-20 rounded-full object-cover" src="https://via.placeholder.com/80" alt="用户头像">
-                                <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer" id="changeAvatarBtn">
-                                    <span class="text-white text-xs">更换头像</span>
-                                </div>
-                                <input type="file" id="avatarInput" class="hidden" accept="image/*">
-                            </div>
-                            <div>
-                                <h3 id="profileName" class="text-xl font-semibold">加载中...</h3>
-                                <p class="text-gray-600">工号: <span id="profileEmployeeId">加载中...</span></p>
-                                <div class="flex items-center space-x-2 mt-2">
-                                    <div class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm">
-                                        积分: <span id="profilePoints" class="font-bold">0</span>
-                                    </div>
-                                    <p id="adminBadge" class="hidden text-xs bg-red-500 text-white px-2 py-0.5 rounded">管理员</p>
-                                    <p id="systemAdminBadge" class="hidden text-xs bg-purple-500 text-white px-2 py-0.5 rounded">系统管理员</p>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- 统计数据 -->
-                        <div class="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded">
-                            <div class="text-center">
-                                <p class="text-2xl font-bold text-blue-500" id="userPostCount">0</p>
-                                <p class="text-gray-600">发帖数</p>
-                            </div>
-                            <div class="text-center">
-                                <p class="text-2xl font-bold text-green-500" id="userReplyCount">0</p>
-                                <p class="text-gray-600">回复数</p>
-                            </div>
-                            <div class="text-center">
-                                <p class="text-2xl font-bold text-red-500" id="userLikedCount">0</p>
-                                <p class="text-gray-600">被点赞数</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h3 class="text-lg font-semibold mb-3">我的发布记录</h3>
-                    <div id="userPosts" class="space-y-6"></div>
-                </div>
-
-                <!-- 积分排行榜 -->
-                <div id="rankingSection" class="section-content hidden">
-                    <h2 class="text-xl font-bold mb-4">积分排行榜</h2>
-                    <div class="bg-white shadow-md rounded-lg p-6">
-                        <div id="rankingList" class="space-y-4">
-                            <p class="text-gray-500 text-center">加载中...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 页脚 -->
-        <footer class="bg-gray-800 text-white py-4 mt-auto">
-            <div class="container mx-auto px-4 text-center">
-                <p>装备部件团支部青年π空间 &copy; 2025</p>
-            </div>
-        </footer>
+async function renderPointsBoard() {
+  const q = collection(db, "users");
+  const snap = await getDocs(q);
+  let users = [];
+  snap.forEach(d => users.push({id:d.id, ...d.data()}));
+  users.sort((a,b)=> (b.points||0)-(a.points||0));
+  const rows = users.map(u=>`
+    <tr ${currentUser.id===u.id?'class="highlight"':''}>
+      <td>${u.name}</td>
+      <td>${u.jobId}</td>
+      <td>${u.role}</td>
+      <td>${u.points || 0}</td>
+    </tr>`).join('');
+  document.getElementById('content').innerHTML = `
+    <h2>🏅 积分榜</h2>
+    <div class="scoreboard">
+      <table>
+        <thead><tr><th>姓名</th><th>工号</th><th>角色</th><th>积分</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
     </div>
+  `;
+}
 
-    <!-- 状态提示 -->
-    <div id="statusToast" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-20 opacity-0">
-        操作成功
-    </div>
+async function renderBoard(boardType) {
+  const q = query(collection(db, "posts"), where("board", "==", boardType), orderBy("timestamp", "desc"));
+  const snap = await getDocs(q);
+  let posts = [];
+  snap.forEach(d=> posts.push({id:d.id, ...d.data()}));
+  let html = `<h2>${boardType==="tech"?"技术问题":"日常问题"}</h2>
+  <button id="newPost">发布帖子</button>`;
+  posts.sort((a,b)=>{
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return b.timestamp - a.timestamp;
+  });
+  for (const p of posts) {
+    html += `
+    <div class="post">
+      <p><strong>${p.authorName}</strong> ${p.role==="admin"||p.role==="sysadmin"?'<span class="badge">管理员</span>':''}
+      ${p.excellent?'<span class="badge">优秀帖</span>':''}</p>
+      <p>${p.content}</p>
+      <button data-id="${p.id}" class="likeBtn">👍${p.likes||0}</button>
+      ${currentUser.role==="admin" || currentUser.role==="sysadmin"
+        ?`<button data-id="${p.id}" class="excellent">设为优秀</button>`:""}
+    </div>`;
+  }
+  document.getElementById('content').innerHTML = html;
+  document.querySelectorAll('.excellent').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const id=btn.dataset.id;
+      const postRef=doc(db,"posts",id);
+      const snap=await getDoc(postRef);
+      if(!snap.exists())return;
+      const postData=snap.data();
+      if(postData.excellent) {alert("已是优秀帖");return;}
+      await updateDoc(postRef,{excellent:true});
+      await modifyPoints(postData.authorId,10);
+      alert("标记为优秀帖并奖励作者+10分");
+      renderBoard(boardType);
+    }
+  });
+  document.getElementById('newPost').onclick = async ()=>{
+    const content=prompt("请输入帖子内容：");
+    if(!content)return;
+    const newPost={
+      content, board:boardType,
+      authorId:currentUser.id,
+      authorName:currentUser.name,
+      role:currentUser.role,
+      likes:0,
+      pinned:false,
+      excellent:false,
+      timestamp:Date.now()
+    };
+    await addDoc(collection(db,"posts"), newPost);
+    await modifyPoints(currentUser.id,10);
+    alert("发帖成功 +10分！");
+    renderBoard(boardType);
+  };
+}
 
-    <!-- 积分变化提示 -->
-    <div id="pointsToast" class="fixed top-20 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg transform transition-transform duration-300 translate-x-20 opacity-0">
-        +5 积分
-    </div>
+// =============== 初始化绑定 ===============
+document.getElementById("logoutBtn").onclick = ()=>{
+  localStorage.removeItem("currentUser");
+  location.reload();
+};
+document.getElementById("nav-home").onclick = renderHome;
+document.getElementById("nav-profile").onclick = renderProfile;
+document.getElementById("nav-points").onclick = renderPointsBoard;
+document.getElementById("nav-tech").onclick = ()=>renderBoard("tech");
+document.getElementById("nav-daily").onclick = ()=>renderBoard("daily");
 
-    <!-- 数据加载中遮罩 -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white p-4 rounded-lg shadow-lg text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-2"></div>
-            <p>加载中，请稍候...</p>
-        </div>
-    </div>
-
-    <!-- 模板 -->
-    <template id="postTemplate">
-        <div class="post bg-white shadow-md rounded-lg p-4">
-            <div class="flex items-start space-x-3 mb-3">
-                <img class="post-avatar w-10 h-10 rounded-full object-cover" src="https://via.placeholder.com/40" alt="用户头像">
-                <div class="flex-grow">
-                    <div class="flex items-center space-x-2">
-                        <h3 class="post-author font-semibold"></h3>
-                        <span class="post-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>
-                        <span class="post-pinned-badge hidden text-xs bg-yellow-500 text-white px-1 rounded">置顶</span>
-                        <span class="post-excellent-badge hidden text-xs bg-green-500 text-white px-1 rounded">优秀</span>
-                    </div>
-                    <p class="post-time text-gray-500 text-sm"></p>
-                </div>
-            </div>
-            <p class="post-content mb-3"></p>
-            <!-- 修改为改进的图片容器 -->
-            <div class="post-image-container mb-3 hidden text-center">
-                <img class="post-image max-w-full max-h-96 inline-block object-contain rounded" alt="发布的图片">
-            </div>
-            <div class="flex items-center space-x-4 text-gray-500 mb-3">
-                <button class="like-btn flex items-center space-x-1 hover:text-blue-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                    </svg>
-                    <span class="like-count">0</span>
-                </button>
-                <button class="reply-btn flex items-center space-x-1 hover:text-blue-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                    <span>回复</span>
-                </button>
-                <button class="pin-btn hidden text-yellow-500 hover:text-yellow-700">置顶</button>
-                <button class="unpin-btn hidden text-yellow-500 hover:text-yellow-700">取消置顶</button>
-                <button class="excellent-btn hidden text-green-500 hover:text-green-700">设为优秀</button>
-                <button class="unexcellent-btn hidden text-green-500 hover:text-green-700">取消优秀</button>
-                <button class="delete-btn hidden text-red-500 hover:text-red-700">删除</button>
-            </div>
-            
-            <!-- 回复区域 -->
-            <div class="replies-section mt-2 border-t pt-2 hidden">
-                <div class="reply-form mb-3">
-                    <div class="flex">
-                        <input type="text" class="reply-input flex-grow px-3 py-1 border rounded-l focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="回复这条消息...">
-                        <button class="send-reply-btn px-3 py-1 bg-blue-500 text-white rounded-r hover:bg-blue-600">发送</button>
-                    </div>
-                    <span class="text-xs text-gray-500 mt-1">回复 +<span class="reply-points">3</span>积分</span>
-                </div>
-                <div class="replies-container space-y-2"></div>
-            </div>
-        </div>
-    </template>
-
-    <!-- 回复模板 -->
-    <template id="replyTemplate">
-        <div class="reply bg-gray-50 p-2 rounded">
-            <div class="flex items-start">
-                <img class="reply-avatar w-6 h-6 rounded-full object-cover mr-2" src="https://via.placeholder.com/24" alt="回复者头像">
-                <div class="flex-grow">
-                    <div class="flex items-center">
-                        <span class="reply-author font-medium text-sm mr-1"></span>
-                        <span class="reply-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>
-                        <span class="reply-time text-gray-400 text-xs ml-auto"></span>
-                    </div>
-                    <p class="reply-content text-sm"></p>
-                </div>
-                <button class="delete-reply-btn hidden text-red-500 hover:text-red-700 text-xs ml-2">删除</button>
-            </div>
-        </div>
-    </template>
-
-    <!-- 管理员项模板 -->
-    <template id="adminItemTemplate">
-        <div class="admin-item flex items-center justify-between p-2 bg-gray-100 rounded">
-            <span class="admin-id font-medium"></span>
-            <button class="remove-admin-btn text-red-500 hover:text-red-700 text-sm">移除</button>
-        </div>
-    </template>
-
-    <!-- 排行榜项模板 -->
-    <template id="rankingItemTemplate">
-        <div class="ranking-item flex items-center space-x-4 p-4 bg-white rounded-lg border">
-            <div class="ranking-position text-2xl font-bold text-gray-500 w-10 text-center"></div>
-            <img class="ranking-avatar w-12 h-12 rounded-full object-cover" src="https://via.placeholder.com/48" alt="用户头像">
-            <div class="flex-grow">
-                <div class="flex items-center space-x-2">
-                    <span class="ranking-name font-semibold"></span>
-                    <span class="ranking-admin-badge hidden text-xs bg-red-500 text-white px-1 rounded">管理员</span>
-                </div>
-                <p class="text-sm text-gray-600">工号: <span class="ranking-employee-id"></span></p>
-            </div>
-            <div class="text-right">
-                <p class="text-2xl font-bold text-yellow-500"><span class="ranking-points">0</span> 分</p>
-            </div>
-        </div>
-    </template>
-
-    <script>
-        // Firebase 配置
-        const firebaseConfig = {
-            apiKey: "AIzaSyC19CX0gSWAzvFevy43EQRy4uX1A265LuM",
-            authDomain: "youth-pi-space.firebaseapp.com",
-            databaseURL: "https://youth-pi-space-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "youth-pi-space",
-            storageBucket: "youth-pi-space.firebasestorage.app",
-            messagingSenderId: "895213716516",
-            appId: "1:895213716516:web:9548b7964aaf3074b504b1"
-        };
-        
-        // 初始化 Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        
-        // 当前用户对象
-        let currentUser = null;
-        let isAdmin = false;
-        let isSystemAdmin = false; // 新增系统管理员标识
-        
-        // 是否已加载过帖子的标志，避免重复处理
-        let postsInitialized = false;
-
-        // 点赞记录缓存
-        let userLikes = {};
-
-        // 显示/隐藏加载遮罩
-        function showLoading(show = true) {
-            document.getElementById('loadingOverlay').classList.toggle('hidden', !show);
-        }
-
-        // 状态提示
-        function showToast(message, isSuccess = true) {
-            const toast = document.getElementById('statusToast');
-            toast.textContent = message;
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
-            
-            if (isSuccess) {
-                toast.classList.remove('bg-red-500');
-                toast.classList.add('bg-green-500');
-            } else {
-                toast.classList.remove('bg-green-500');
-                toast.classList.add('bg-red-500');
-            }
-            
-            setTimeout(() => {
-                toast.classList.remove('translate-y-0', 'opacity-100');
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
-        }
-
-        // 显示积分变化提示
-        function showPointsToast(points) {
-            const toast = document.getElementById('pointsToast');
-            toast.textContent = `+${points} 积分`;
-            toast.classList.remove('translate-x-20', 'opacity-0');
-            toast.classList.add('translate-x-0', 'opacity-100');
-            
-            // 更新导航栏积分显示动画
-            const pointsElement = document.getElementById('navUserPoints');
-            pointsElement.classList.add('points-change');
-            
-            setTimeout(() => {
-                toast.classList.remove('translate-x-0', 'opacity-100');
-                toast.classList.add('translate-x-20', 'opacity-0');
-                pointsElement.classList.remove('points-change');
-            }, 2000);
-        }
-
-        // 生成密码哈希
-        function hashPassword(password, salt = null) {
-            if (!salt) {
-                // 生成随机盐值
-                salt = CryptoJS.lib.WordArray.random(128/8).toString();
-            }
-            
-            // 使用盐值创建PBKDF2哈希
-            const hash = CryptoJS.PBKDF2(password, salt, {
-                keySize: 512/32,
-                iterations: 1000
-            }).toString();
-            
-            // 返回格式: salt:hash
-            return salt + ":" + hash;
-        }
-        
-        // 验证密码
-        function verifyPassword(password, storedHash) {
-            const [salt, hash] = storedHash.split(":");
-            const calculatedHash = hashPassword(password, salt);
-            return calculatedHash === storedHash;
-        }
-
-        // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('页面加载完成');
-            
-            // 初始化管理员列表
-            initializeAdminList();
-            
-            // 检查登录状态
-            checkLoginStatus();
-
-            // 登录和注册表单切换按钮
-            document.getElementById('showRegisterBtn').addEventListener('click', () => {
-                document.getElementById('loginContainer').classList.add('hidden');
-                document.getElementById('registerContainer').classList.remove('hidden');
-            });
-            
-            document.getElementById('showLoginBtn').addEventListener('click', () => {
-                document.getElementById('registerContainer').classList.add('hidden');
-                document.getElementById('loginContainer').classList.remove('hidden');
-            });
-            
-            // 登录按钮
-            document.getElementById('loginBtn').addEventListener('click', login);
-            
-            // 注册按钮
-            document.getElementById('registerBtn').addEventListener('click', register);
-            
-            // 退出登录按钮
-            document.getElementById('logoutBtn').addEventListener('click', logout);
-            
-            // 编辑信息按钮
-            document.getElementById('editProfileBtn').addEventListener('click', showEditProfileForm);
-            document.getElementById('cancelEditBtn').addEventListener('click', hideEditProfileForm);
-            
-            // 保存用户信息按钮
-            document.getElementById('saveUserInfoBtn').addEventListener('click', updateUserInfo);
-
-            // 管理员面板按钮
-            document.getElementById('adminPanelBtn').addEventListener('click', showAdminPanel);
-            document.getElementById('closeAdminPanelBtn').addEventListener('click', hideAdminPanel);
-            document.getElementById('addAdminBtn').addEventListener('click', addNewAdmin);
-            
-            // 用户管理按钮
-            document.getElementById('userManagementBtn').addEventListener('click', showUserManagement);
-            document.getElementById('closeUserManagementBtn').addEventListener('click', hideUserManagement);
-
-            // 签到按钮
-            document.getElementById('checkinBtn').addEventListener('click', dailyCheckin);
-
-            // 板块切换
-            document.querySelectorAll('.section-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const sectionId = btn.dataset.section;
-                    
-                    // 更新按钮样式
-                    document.querySelectorAll('.section-btn').forEach(b => {
-                        if (b.dataset.section === sectionId) {
-                            b.classList.add('bg-blue-500', 'text-white');
-                            b.classList.remove('bg-gray-200');
-                        } else {
-                            b.classList.remove('bg-blue-500', 'text-white');
-                            b.classList.add('bg-gray-200');
-                        }
-                    });
-                    
-                    // 显示对应板块内容
-                    document.querySelectorAll('.section-content').forEach(content => {
-                        content.classList.add('hidden');
-                        if (content.id === `${sectionId}Section`) {
-                            content.classList.remove('hidden');
-                            
-                            // 如果是排行榜，加载数据
-                            if (sectionId === 'ranking') {
-                                loadRankingList();
-                            }
-                        }
-                    });
-                });
-            });
-
-            // 发布帖子
-            document.getElementById('techPostBtn').addEventListener('click', () => createPost('tech'));
-            document.getElementById('dailyPostBtn').addEventListener('click', () => createPost('daily'));
-
-            // 更换头像
-            document.getElementById('changeAvatarBtn').addEventListener('click', () => 
-                document.getElementById('avatarInput').click()
-            );
-            document.getElementById('avatarInput').addEventListener('change', updateAvatar);
-            
-            // 初始化系统管理员账号
-            addInitialSystemAdmin();
-        });
-        
-        // 初始化系统管理员账号
-        function addInitialSystemAdmin() {
-            database.ref('users/admin001').once('value').then((snapshot) => {
-                if (!snapshot.exists()) {
-                    console.log('创建系统管理员账号');
-                    
-                    // 创建管理员账号 - 使用固定密码哈希而不是动态生成
-                    // admin123 的哈希值
-                    const adminUser = {
-                        id: "admin001",
-                        name: "系统管理员",
-                        employee_id: "admin001",
-                        password_hash: "QJEzWGpBYm1YQXg6N2NkY2UxYmQ4YzNkMzU3YWQwNjc5YTc4YjIxNGE0NDZhNDI5MmY4MDQwNzg0YTcwNTQzZjNhOTE2NzQyZDA3Yw==",
-                        avatar_url: "https://via.placeholder.com/100",
-                        is_admin: true,
-                        is_system_admin: true, // 系统管理员标识
-                        created_at: new Date().toISOString(),
-                        // 新增积分相关字段
-                        points: 1000,
-                        last_checkin_date: null,
-                        stats: {
-                            post_count: 0,
-                            reply_count: 0,
-                            liked_count: 0
-                        }
-                    };
-                    
-                    database.ref('users/admin001').set(adminUser);
-                    
-                    // 确保管理员列表中有此账号
-                    database.ref('admins/admin001').set(true);
-                }
-            });
-        }
-        
-        // 检查登录状态
-        function checkLoginStatus() {
-            const sessionData = localStorage.getItem('userSession');
-            if (sessionData) {
-                try {
-                    const session = JSON.parse(sessionData);
-                    // 验证会话是否过期
-                    const now = new Date().getTime();
-                    if (session.expires > now) {
-                        // 会话有效，从Firebase获取最新用户数据
-                        database.ref(`users/${session.employee_id}`).once('value').then((snapshot) => {
-                            if (snapshot.exists()) {
-                                currentUser = snapshot.val();
-                                checkAndUpdateAdminStatus();
-                                
-                                // 加载用户点赞记录
-                                loadUserLikes();
-                                
-                                // 检查今日是否已签到
-                                checkTodayCheckin();
-                                
-                                // 设置帖子监听和加载初始数据
-                                addInitialPostsIfNeeded();
-                                setupRealTimeListeners();
-                                
-                                showMainUI();
-                            } else {
-                                // 用户数据不存在，可能被删除
-                                logout();
-                            }
-                        });
-                    } else {
-                        // 会话过期
-                        logout();
-                    }
-                } catch (error) {
-                    console.error('解析会话数据出错:', error);
-                    logout();
-                }
-            } else {
-                // 显示登录表单
-                document.getElementById('loginContainer').classList.remove('hidden');
-                document.getElementById('mainContainer').classList.add('hidden');
-                document.getElementById('adminPanelContainer').classList.add('hidden');
-                document.getElementById('userInfoContainer').classList.add('hidden');
-                document.getElementById('userManagementContainer').classList.add('hidden');
-                document.getElementById('userNav').classList.add('hidden');
-            }
-        }
-        
-        // 登录
-        function login() {
-            const employeeId = document.getElementById('loginEmployeeId').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            
-            if (!employeeId || !password) {
-                showToast('请输入工号和密码', false);
-                return;
-            }
-            
-            showLoading(true);
-            
-            // 系统管理员特殊处理
-            if (employeeId === 'admin001' && password === 'admin123') {
-                // 直接验证系统管理员
-                database.ref(`users/admin001`).once('value').then((snapshot) => {
-                    if (snapshot.exists()) {
-                        currentUser = snapshot.val();
-                        isAdmin = true;
-                        isSystemAdmin = true; // 设置系统管理员标识
-                        
-                        // 创建会话
-                        const session = {
-                            employee_id: employeeId,
-                            expires: new Date().getTime() + (24 * 60 * 60 * 1000)
-                        };
-                        localStorage.setItem('userSession', JSON.stringify(session));
-                        
-                        // 清空登录表单
-                        document.getElementById('loginEmployeeId').value = '';
-                        document.getElementById('loginPassword').value = '';
-                        
-                        // 加载用户点赞记录
-                        loadUserLikes();
-                        
-                        // 检查今日是否已签到
-                        checkTodayCheckin();
-                        
-                        addInitialPostsIfNeeded();
-                        setupRealTimeListeners();
-                        
-                        showMainUI();
-                        showToast('系统管理员登录成功');
-                    } else {
-                        // 如果系统管理员账号不存在，则初始化
-                        addInitialSystemAdmin();
-                        showToast('已初始化系统，请再次登录', false);
-                    }
-                    showLoading(false);
-                }).catch(error => {
-                    console.error('系统管理员登录出错:', error);
-                    showToast('登录失败: ' + error.message, false);
-                    showLoading(false);
-                });
-                return;
-            }
-            
-            // 普通用户登录
-            database.ref(`users/${employeeId}`).once('value').then((snapshot) => {
-                if (snapshot.exists()) {
-                    const userData = snapshot.val();
-                    
-                    // 验证密码
-                    if (verifyPassword(password, userData.password_hash)) {
-                        // 密码正确，创建会话
-                        currentUser = userData;
-                        
-                        // 创建会话，设置24小时过期
-                        const session = {
-                            employee_id: employeeId,
-                            expires: new Date().getTime() + (24 * 60 * 60 * 1000) // 24小时后过期
-                        };
-                        localStorage.setItem('userSession', JSON.stringify(session));
-                        
-                        // 检查管理员状态
-                        checkAndUpdateAdminStatus();
-                        
-                        // 清空登录表单
-                        document.getElementById('loginEmployeeId').value = '';
-                        document.getElementById('loginPassword').value = '';
-                        
-                        // 加载用户点赞记录
-                        loadUserLikes();
-                        
-                        // 检查今日是否已签到
-                        checkTodayCheckin();
-                        
-                        // 设置帖子监听和加载初始数据
-                        addInitialPostsIfNeeded();
-                        setupRealTimeListeners();
-                        
-                        showMainUI();
-                        showToast('登录成功');
-                    } else {
-                        showToast('密码错误', false);
-                    }
-                } else {
-                    showToast('该工号尚未注册', false);
-                }
-                showLoading(false);
-            }).catch(error => {
-                console.error('登录出错:', error);
-                showToast('登录失败: ' + error.message, false);
-                showLoading(false);
-            });
-        }
-        
-        // 注册
-        async function register() {
-            const name = document.getElementById('registerName').value.trim();
-            const employeeId = document.getElementById('registerEmployeeId').value.trim();
-            const password = document.getElementById('registerPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const avatarFile = document.getElementById('registerAvatar').files[0];
-            
-            if (!name || !employeeId || !password) {
-                showToast('请填写所有必填字段', false);
-                return;
-            }
-            
-            if (password !== confirmPassword) {
-                showToast('两次输入的密码不一致', false);
-                return;
-            }
-            
-            if (password.length < 6) {
-                showToast('密码长度至少6位', false);
-                return;
-            }
-            
-            showLoading(true);
-            
-            try {
-                // 检查工号是否已存在
-                const snapshot = await database.ref(`users/${employeeId}`).once('value');
-                if (snapshot.exists()) {
-                    showToast('该工号已被注册', false);
-                    showLoading(false);
-                    return;
-                }
-                
-                // 处理头像
-                let avatarUrl = 'https://via.placeholder.com/100';
-                if (avatarFile) {
-                    const compressedFile = await compressImage(avatarFile);
-                    avatarUrl = await uploadImageToImgBB(compressedFile);
-                    if (!avatarUrl) {
-                        showToast('头像上传失败，使用默认头像', false);
-                        avatarUrl = 'https://via.placeholder.com/100';
-                    }
-                }
-                
-                // 创建用户对象
-                const userId = generateId();
-                const passwordHash = hashPassword(password);
-                
-                const newUser = {
-                    id: userId,
-                    name: name,
-                    employee_id: employeeId,
-                    password_hash: passwordHash,
-                    avatar_url: avatarUrl,
-                    is_admin: false,
-                    is_system_admin: false,
-                    created_at: new Date().toISOString(),
-                    // 新增积分相关字段
-                    points: 0,
-                    last_checkin_date: null,
-                    stats: {
-                        post_count: 0,
-                        reply_count: 0,
-                        liked_count: 0
-                    }
-                };
-                
-                // 保存到Firebase
-                await database.ref(`users/${employeeId}`).set(newUser);
-                
-                // 清空注册表单
-                document.getElementById('registerName').value = '';
-                document.getElementById('registerEmployeeId').value = '';
-                document.getElementById('registerPassword').value = '';
-                document.getElementById('confirmPassword').value = '';
-                document.getElementById('registerAvatar').value = '';
-                
-                showToast('注册成功，请登录');
-                
-                // 显示登录表单
-                document.getElementById('registerContainer').classList.add('hidden');
-                document.getElementById('loginContainer').classList.remove('hidden');
-            } catch (error) {
-                console.error('注册失败:', error);
-                showToast('注册失败: ' + error.message, false);
-            } finally {
-                showLoading(false);
-            }
-        }
-        
-        // 退出登录
-        function logout() {
-            // 清除会话
-            localStorage.removeItem('userSession');
-            currentUser = null;
-            isAdmin = false;
-            isSystemAdmin = false;
-            userLikes = {};
-            
-            // 重置标志
-            postsInitialized = false;
-            
-            // 移除实时监听器
-            database.ref('posts').off();
-            database.ref('replies').off();
-            
-            // 显示登录表单
-            document.getElementById('loginContainer').classList.remove('hidden');
-            document.getElementById('mainContainer').classList.add('hidden');
-            document.getElementById('adminPanelContainer').classList.add('hidden');
-            document.getElementById('userInfoContainer').classList.add('hidden');
-            document.getElementById('userManagementContainer').classList.add('hidden');
-            document.getElementById('userNav').classList.add('hidden');
-            
-            showToast('已退出登录');
-        }
-        
-        // 显示编辑个人信息表单
-        function showEditProfileForm() {
-            if (!currentUser) return;
-            
-            document.getElementById('mainContainer').classList.add('hidden');
-            document.getElementById('userInfoContainer').classList.remove('hidden');
-            
-            // 填充表单
-            document.getElementById('userName').value = currentUser.name;
-        }
-        
-        // 隐藏编辑个人信息表单
-        function hideEditProfileForm() {
-            document.getElementById('userInfoContainer').classList.add('hidden');
-            document.getElementById('mainContainer').classList.remove('hidden');
-        }
-        
-        // 更新用户信息
-        async function updateUserInfo() {
-            if (!currentUser) return;
-            
-            const name = document.getElementById('userName').value.trim();
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
-            const avatarFile = document.getElementById('userAvatar').files[0];
-            
-            if (!name) {
-                showToast('姓名不能为空', false);
-                return;
-            }
-            
-            // 检查密码
-            if (newPassword) {
-                if (newPassword.length < 6) {
-                    showToast('密码长度至少6位', false);
-                    return;
-                }
-                
-                if (newPassword !== confirmNewPassword) {
-                    showToast('两次输入的密码不一致', false);
-                    return;
-                }
-            }
-            
-            showLoading(true);
-            
-            try {
-                // 更新对象
-                const updates = {
-                    name: name
-                };
-                
-                // 如果有密码更新
-                if (newPassword) {
-                    updates.password_hash = hashPassword(newPassword);
-                }
-                
-                // 如果有头像更新
-                if (avatarFile) {
-                    const compressedFile = await compressImage(avatarFile);
-                    const avatarUrl = await uploadImageToImgBB(compressedFile);
-                    if (avatarUrl) {
-                        updates.avatar_url = avatarUrl;
-                    }
-                }
-                
-                // 更新到Firebase
-                await database.ref(`users/${currentUser.employee_id}`).update(updates);
-                
-                // 更新本地对象
-                Object.assign(currentUser, updates);
-                
-                // 如果更新了头像，同时更新帖子和回复中的头像
-                if (avatarFile && updates.avatar_url) {
-                    updatePostsWithNewAvatar(updates.avatar_url);
-                    updateRepliesWithNewAvatar(updates.avatar_url);
-                }
-                
-                // 如果更新了姓名，同时更新帖子和回复中的姓名
-                if (name !== currentUser.name) {
-                    updatePostsWithNewName(name);
-                    updateRepliesWithNewName(name);
-                }
-                
-                // 清空表单
-                document.getElementById('newPassword').value = '';
-                document.getElementById('confirmNewPassword').value = '';
-                document.getElementById('userAvatar').value = '';
-                
-                hideEditProfileForm();
-                showMainUI();
-                showToast('个人信息更新成功');
-            } catch (error) {
-                console.error('更新失败:', error);
-                showToast('更新失败: ' + error.message, false);
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // 初始化管理员列表
-        function initializeAdminList() {
-            // 检查管理员列表是否存在，如果不存在则初始化
-            database.ref('admins').once('value').then((snapshot) => {
-                if (!snapshot.exists()) {
-                    // 创建默认管理员列表
-                    const defaultAdmins = {
-                        'admin001': true
-                    };
-                    database.ref('admins').set(defaultAdmins);
-                }
-                
-                // 设置管理员列表变化监听
-                database.ref('admins').on('value', (snapshot) => {
-                    updateAdminList(snapshot);
-                    
-                    // 如果当前用户已登录，更新其管理员状态
-                    if (currentUser) {
-                        checkAndUpdateAdminStatus();
-                    }
-                });
-            });
-        }
-        
-        // 更新管理员列表UI
-        function updateAdminList(snapshot) {
-            const adminList = document.getElementById('adminList');
-            adminList.innerHTML = '';
-            
-            if (!snapshot.exists()) {
-                adminList.innerHTML = '<p class="text-gray-500 text-center">暂无管理员</p>';
-                return;
-            }
-            
-            const admins = [];
-            snapshot.forEach((childSnapshot) => {
-                admins.push(childSnapshot.key);
-            });
-            
-            if (admins.length === 0) {
-                adminList.innerHTML = '<p class="text-gray-500 text-center">暂无管理员</p>';
-                return;
-            }
-            
-            // 按字母顺序排序
-            admins.sort();
-            
-            // 添加到UI
-            const template = document.getElementById('adminItemTemplate');
-            
-            admins.forEach(adminId => {
-                const adminElement = template.content.cloneNode(true).querySelector('.admin-item');
-                adminElement.querySelector('.admin-id').textContent = adminId;
-                
-                // 系统管理员不能移除
-                if (adminId === 'admin001') {
-                    adminElement.querySelector('.remove-admin-btn').textContent = '系统管理员';
-                    adminElement.querySelector('.remove-admin-btn').disabled = true;
-                    adminElement.querySelector('.remove-admin-btn').classList.add('text-gray-400');
-                    adminElement.querySelector('.remove-admin-btn').classList.remove('text-red-500', 'hover:text-red-700');
-                } else {
-                    // 添加移除管理员事件
-                    adminElement.querySelector('.remove-admin-btn').addEventListener('click', () => {
-                        removeAdmin(adminId);
-                    });
-                }
-                
-                adminList.appendChild(adminElement);
-            });
-        }
-        
-        // 添加新管理员
-        function addNewAdmin() {
-            if (!isAdmin) {
-                showToast('只有管理员可以添加其他管理员', false);
-                return;
-            }
-            
-            if (!isSystemAdmin) {
-                showToast('只有系统管理员可以添加其他管理员', false);
-                return;
-            }
-            
-            const newAdminId = document.getElementById('newAdminId').value.trim();
-            if (!newAdminId) {
-                showToast('请输入工号', false);
-                return;
-            }
-            
-            // 检查是否已经是管理员
-            database.ref(`admins/${newAdminId}`).once('value').then((snapshot) => {
-                if (snapshot.exists()) {
-                    showToast('该工号已经是管理员', false);
-                    return;
-                }
-                
-                // 检查该工号是否存在
-                database.ref(`users/${newAdminId}`).once('value').then((userSnapshot) => {
-                    if (!userSnapshot.exists()) {
-                        showToast('该工号尚未注册', false);
-                        return;
-                    }
-                    
-                    // 添加到管理员列表
-                    database.ref(`admins/${newAdminId}`).set(true)
-                        .then(() => {
-                            document.getElementById('newAdminId').value = '';
-                            showToast(`已将工号 ${newAdminId} 设为管理员`);
-                            
-                            // 更新用户数据中的管理员标识
-                            database.ref(`users/${newAdminId}`).update({ is_admin: true });
-                            
-                            // 更新该工号发布的所有内容的管理员状态
-                            updateUserContentAdminStatusByEmployeeId(newAdminId, true);
-                        })
-                        .catch(error => {
-                            console.error('添加管理员失败:', error);
-                            showToast('添加管理员失败: ' + error.message, false);
-                        });
-                });
-            });
-        }
-        
-        // 移除管理员
-        function removeAdmin(adminId) {
-            if (!isAdmin) {
-                showToast('只有管理员可以移除其他管理员', false);
-                return;
-            }
-            
-            if (!isSystemAdmin) {
-                showToast('只有系统管理员可以移除其他管理员', false);
-                return;
-            }
-            
-            // 系统管理员不能被移除
-            if (adminId === 'admin001') {
-                showToast('系统管理员不能被移除', false);
-                return;
-            }
-            
-            // 从管理员列表中移除
-            database.ref(`admins/${adminId}`).remove()
-                .then(() => {
-                    showToast(`已移除管理员 ${adminId}`);
-                    
-                    // 更新用户数据中的管理员标识
-                    database.ref(`users/${adminId}`).update({ is_admin: false });
-                    
-                    // 更新该工号发布的所有内容的管理员状态
-                    updateUserContentAdminStatusByEmployeeId(adminId, false);
-                })
-                .catch(error => {
-                    console.error('移除管理员失败:', error);
-                    showToast('移除管理员失败: ' + error.message, false);
-                });
-        }
-        
-        // 显示管理员面板
-        function showAdminPanel() {
-            if (!isAdmin) {
-                showToast('只有管理员可以访问设置', false);
-                return;
-            }
-            
-            document.getElementById('mainContainer').classList.add('hidden');
-            document.getElementById('adminPanelContainer').classList.remove('hidden');
-            
-            // 加载最新管理员列表
-            database.ref('admins').once('value').then(updateAdminList);
-        }
-        
-        // 隐藏管理员面板
-        function hideAdminPanel() {
-            document.getElementById('adminPanelContainer').classList.add('hidden');
-            document.getElementById('mainContainer').classList.remove('hidden');
-        }
-        
-        // 显示用户管理面板
-        function showUserManagement() {
-            if (!isSystemAdmin) {
-                showToast('只有系统管理员可以访问用户管理', false);
-                return;
-            }
-            
-            document.getElementById('mainContainer').classList.add('hidden');
-            document.getElementById('userManagementContainer').classList.remove('hidden');
-            
-            // 加载所有用户数据
-            loadAllUsers();
-        }
-        
-        // 隐藏用户管理面板
-        function hideUserManagement() {
-            document.getElementById('userManagementContainer').classList.add('hidden');
-            document.getElementById('mainContainer').classList.remove('hidden');
-        }
-        
-        // 加载所有用户数据
-        function loadAllUsers() {
-            showLoading(true);
-            
-            database.ref('users').once('value').then((snapshot) => {
-                const userTable = document.getElementById('userTable');
-                userTable.innerHTML = '';
-                
-                if (!snapshot.exists()) {
-                    userTable.innerHTML = '<tr><td colspan="6" class="py-2 px-4 text-center">暂无用户数据</td></tr>';
-                    showLoading(false);
-                    return;
-                }
-                
-                const users = [];
-                snapshot.forEach((childSnapshot) => {
-                    users.push(childSnapshot.val());
-                });
-                
-                // 按注册时间排序
-                users.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                
-                // 创建用户表格行
-                users.forEach(user => {
-                    const row = document.createElement('tr');
-                    
-                    // 工号
-                    const idCell = document.createElement('td');
-                    idCell.className = 'py-2 px-4 border-b border-gray-200';
-                    idCell.textContent = user.employee_id;
-                    row.appendChild(idCell);
-                    
-                    // 姓名
-                    const nameCell = document.createElement('td');
-                    nameCell.className = 'py-2 px-4 border-b border-gray-200';
-                    nameCell.textContent = user.name;
-                    row.appendChild(nameCell);
-                    
-                    // 积分
-                    const pointsCell = document.createElement('td');
-                    pointsCell.className = 'py-2 px-4 border-b border-gray-200';
-                    pointsCell.innerHTML = `<span class="text-yellow-500 font-bold">${user.points || 0}</span>`;
-                    row.appendChild(pointsCell);
-                    
-                    // 注册时间
-                    const timeCell = document.createElement('td');
-                    timeCell.className = 'py-2 px-4 border-b border-gray-200';
-                    timeCell.textContent = new Date(user.created_at).toLocaleString();
-                    row.appendChild(timeCell);
-                    
-                    // 管理员状态
-                    const adminCell = document.createElement('td');
-                    adminCell.className = 'py-2 px-4 border-b border-gray-200';
-                    if (user.is_system_admin) {
-                        adminCell.innerHTML = '<span class="bg-purple-500 text-white px-2 py-0.5 rounded">系统管理员</span>';
-                    } else if (user.is_admin) {
-                        adminCell.innerHTML = '<span class="bg-red-500 text-white px-2 py-0.5 rounded">管理员</span>';
-                    } else {
-                        adminCell.textContent = '普通用户';
-                    }
-                    row.appendChild(adminCell);
-                    
-                    // 操作按钮
-                    const actionCell = document.createElement('td');
-                    actionCell.className = 'py-2 px-4 border-b border-gray-200';
-                    
-                    // 不允许操作系统管理员
-                    if (!user.is_system_admin) {
-                        // 添加/移除管理员按钮
-                        const adminBtn = document.createElement('button');
-                        adminBtn.className = user.is_admin 
-                            ? 'mr-2 px-2 py-1 bg-yellow-500 text-white rounded text-xs'
-                            : 'mr-2 px-2 py-1 bg-green-500 text-white rounded text-xs';
-                        adminBtn.textContent = user.is_admin ? '移除管理员' : '设为管理员';
-                        adminBtn.addEventListener('click', () => {
-                            if (user.is_admin) {
-                                removeAdmin(user.employee_id);
-                                setTimeout(() => loadAllUsers(), 500);
-                            } else {
-                                addAdminFromUserManagement(user.employee_id);
-                                setTimeout(() => loadAllUsers(), 500);
-                            }
-                        });
-                        actionCell.appendChild(adminBtn);
-                        
-                        // 删除用户按钮
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.className = 'px-2 py-1 bg-red-500 text-white rounded text-xs';
-                        deleteBtn.textContent = '删除';
-                        deleteBtn.addEventListener('click', () => {
-                            if (confirm(`确定要删除用户 ${user.name} (${user.employee_id}) 吗？`)) {
-                                deleteUser(user.employee_id);
-                            }
-                        });
-                        actionCell.appendChild(deleteBtn);
-                    } else {
-                        actionCell.textContent = '系统管理员不可修改';
-                    }
-                    
-                    row.appendChild(actionCell);
-                    
-                    userTable.appendChild(row);
-                });
-                
-                showLoading(false);
-            }).catch(error => {
-                console.error('加载用户数据失败:', error);
-                showToast('加载用户数据失败', false);
-                showLoading(false);
-            });
-        }
-        
-        // 从用户管理界面添加管理员
-        function addAdminFromUserManagement(employeeId) {
-            if (!isSystemAdmin) {
-                showToast('只有系统管理员可以添加其他管理员', false);
-                return;
-            }
-            
-            // 添加到管理员列表
-            database.ref(`admins/${employeeId}`).set(true)
-                .then(() => {
-                    showToast(`已将工号 ${employeeId} 设为管理员`);
-                    
-                    // 更新用户数据中的管理员标识
-                    database.ref(`users/${employeeId}`).update({ is_admin: true });
-                    
-                    // 更新该工号发布的所有内容的管理员状态
-                    updateUserContentAdminStatusByEmployeeId(employeeId, true);
-                    
-                    // 重新加载用户列表
-                    loadAllUsers();
-                })
-                .catch(error => {
-                    console.error('添加管理员失败:', error);
-                    showToast('添加管理员失败: ' + error.message, false);
-                });
-        }
-        
-        // 删除用户
-        function deleteUser(employeeId) {
-            if (!isSystemAdmin) {
-                showToast('只有系统管理员可以删除用户', false);
-                return;
-            }
-            
-            showLoading(true);
-            
-            // 首先从管理员列表中移除
-            database.ref(`admins/${employeeId}`).remove()
-                .then(() => {
-                    // 删除用户所有帖子
-                    return database.ref('posts').orderByChild('author_employee_id').equalTo(employeeId).once('value');
-                })
-                .then((snapshot) => {
-                    const promises = [];
-                    snapshot.forEach((childSnapshot) => {
-                        promises.push(database.ref(`posts/${childSnapshot.key}`).remove());
-                    });
-                    return Promise.all(promises);
-                })
-                .then(() => {
-                    // 删除用户所有回复
-                    return database.ref('replies').orderByChild('author_employee_id').equalTo(employeeId).once('value');
-                })
-                .then((snapshot) => {
-                    const promises = [];
-                    snapshot.forEach((childSnapshot) => {
-                        promises.push(database.ref(`replies/${childSnapshot.key}`).remove());
-                    });
-                    return Promise.all(promises);
-                })
-                .then(() => {
-                    // 删除用户点赞记录
-                    return database.ref(`post_likes`).once('value');
-                })
-                .then((snapshot) => {
-                    const promises = [];
-                    snapshot.forEach((postSnapshot) => {
-                        if (postSnapshot.hasChild(employeeId)) {
-                            promises.push(database.ref(`post_likes/${postSnapshot.key}/${employeeId}`).remove());
-                        }
-                    });
-                    return Promise.all(promises);
-                })
-                .then(() => {
-                    // 删除积分记录
-                    return database.ref(`points_logs/${employeeId}`).remove();
-                })
-                .then(() => {
-                    // 最后删除用户账号
-                    return database.ref(`users/${employeeId}`).remove();
-                })
-                .then(() => {
-                    showToast(`用户 ${employeeId} 删除成功`);
-                    loadAllUsers();
-                })
-                .catch(error => {
-                    console.error('删除用户失败:', error);
-                    showToast('删除用户失败: ' + error.message, false);
-                })
-                .finally(() => {
-                    showLoading(false);
-                });
-        }
-        
-        // 检查并更新当前用户的管理员状态
-        function checkAndUpdateAdminStatus() {
-            if (!currentUser) return;
-            
-            // 首先检查是否是系统管理员
-            if (currentUser.employee_id === 'admin001' || currentUser.is_system_admin) {
-                isAdmin = true;
-                isSystemAdmin = true;
-                updateAdminUI();
-                return;
-            }
-            
-            // 检查普通管理员状态
-            database.ref(`admins/${currentUser.employee_id}`).once('value').then((snapshot) => {
-                isAdmin = snapshot.exists();
-                isSystemAdmin = false;
-                
-                // 更新UI
-                updateAdminUI();
-                
-                // 如果用户已经发布过帖子或回复，也更新这些内容中的管理员状态
-                if (isAdmin !== currentUser.is_admin) {
-                    updateUserContentAdminStatus();
-                    
-                    // 更新currentUser对象
-                    currentUser.is_admin = isAdmin;
-                }
-            });
-        }
-        
-        // 更新管理员UI显示
-        function updateAdminUI() {
-            // 导航栏管理员按钮
-            document.getElementById('adminPanelBtn').classList.toggle('hidden', !isAdmin);
-            
-            // 个人资料中的管理员标识
-            document.getElementById('adminBadge').classList.toggle('hidden', !isAdmin);
-            
-            // 系统管理员专属标识和用户管理按钮
-            document.getElementById('systemAdminBadge').classList.toggle('hidden', !isSystemAdmin);
-            document.getElementById('userManagementBtn').classList.toggle('hidden', !isSystemAdmin);
-        }
-        
-        // 更新用户发布内容中的管理员状态
-        function updateUserContentAdminStatus() {
-            if (!currentUser) return;
-            
-            updateUserContentAdminStatusByEmployeeId(currentUser.employee_id, isAdmin);
-        }
-        
-        // 根据工号更新用户发布内容中的管理员状态
-        function updateUserContentAdminStatusByEmployeeId(employeeId, isAdmin) {
-            // 更新帖子
-            database.ref('posts').orderByChild('author_employee_id').equalTo(employeeId).once('value')
-                .then((snapshot) => {
-                    snapshot.forEach((childSnapshot) => {
-                        childSnapshot.ref.update({ is_admin: isAdmin });
-                    });
-                });
-            
-            // 更新回复
-            database.ref('replies').orderByChild('author_employee_id').equalTo(employeeId).once('value')
-                .then((snapshot) => {
-                    snapshot.forEach((childSnapshot) => {
-                        childSnapshot.ref.update({ is_admin: isAdmin });
-                    });
-                });
-        }
-
-        // 显示主要UI
-        function showMainUI() {
-            document.getElementById('loginContainer').classList.add('hidden');
-            document.getElementById('registerContainer').classList.add('hidden');
-            document.getElementById('userInfoContainer').classList.add('hidden');
-            document.getElementById('adminPanelContainer').classList.add('hidden');
-            document.getElementById('userManagementContainer').classList.add('hidden');
-            document.getElementById('mainContainer').classList.remove('hidden');
-            document.getElementById('userNav').classList.remove('hidden');
-            
-            // 更新导航栏用户信息
-            document.getElementById('navUserName').textContent = currentUser.name;
-            document.getElementById('navUserPoints').textContent = currentUser.points || 0;
-            if (currentUser.avatar_url) {
-                document.getElementById('navUserAvatar').src = currentUser.avatar_url;
-            }
-            
-            // 更新用户个人信息
-            document.getElementById('profileName').textContent = currentUser.name;
-            document.getElementById('profileEmployeeId').textContent = currentUser.employee_id;
-            document.getElementById('profilePoints').textContent = currentUser.points || 0;
-            if (currentUser.avatar_url) {
-                document.getElementById('profileAvatar').src = currentUser.avatar_url;
-            }
-            
-            // 更新用户统计数据
-            updateUserStats();
-            
-            // 显示管理员标识和按钮
-            updateAdminUI();
-        }
-
-        // 更新用户统计数据
-        function updateUserStats() {
-            if (!currentUser) return;
-            
-            // 显示统计数据
-            const stats = currentUser.stats || {};
-            document.getElementById('userPostCount').textContent = stats.post_count || 0;
-            document.getElementById('userReplyCount').textContent = stats.reply_count || 0;
-            document.getElementById('userLikedCount').textContent = stats.liked_count || 0;
-        }
-
-        // 生成唯一ID
-        function generateId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2);
-        }
-
-        // 设置实时监听 - 修复了重复问题
-        function setupRealTimeListeners() {
-            if (postsInitialized) return; // 避免重复设置监听器
-            
-            postsInitialized = true;
-            
-            // 监听帖子变化
-            database.ref('posts').on('value', (snapshot) => {
-                console.log('收到帖子更新');
-                renderPosts(snapshot);
-            });
-            
-            // 监听回复变化
-            database.ref('replies').on('value', (snapshot) => {
-                console.log('收到回复更新');
-                updateAllReplies(snapshot);
-            });
-            
-            // 监听用户数据变化（积分更新）
-            database.ref(`users/${currentUser.employee_id}`).on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    const userData = snapshot.val();
-                    currentUser.points = userData.points || 0;
-                    currentUser.stats = userData.stats || {};
-                    
-                    // 更新UI
-                    document.getElementById('navUserPoints').textContent = currentUser.points;
-                    document.getElementById('profilePoints').textContent = currentUser.points;
-                    updateUserStats();
-                }
-            });
-        }
-
-        // 图片压缩功能
-        function compressImage(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = new Image();
-                    img.onload = function() {
-                        // 创建一个canvas元素
-                        const canvas = document.createElement('canvas');
-                        
-                        // 计算新尺寸 (最大800px)
-                        let width = img.width;
-                        let height = img.height;
-                        const maxSize = 800;
-                        
-                        if (width > height && width > maxSize) {
-                            height = Math.round(height * maxSize / width);
-                            width = maxSize;
-                        } else if (height > maxSize) {
-                            width = Math.round(width * maxSize / height);
-                            height = maxSize;
-                        }
-                        
-                        // 设置canvas大小
-                        canvas.width = width;
-                        canvas.height = height;
-                        
-                        // 绘制压缩后的图片
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        
-                        // 转换为Blob
-                        canvas.toBlob(function(blob) {
-                            resolve(new File([blob], file.name || 'image.jpg', {
-                                type: 'image/jpeg',
-                                lastModified: Date.now()
-                            }));
-                        }, 'image/jpeg', 0.7); // 质量设为0.7
-                    };
-                    img.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        // 增强版图片上传函数
-        async function uploadImageToImgBB(file) {
-            try {
-                // 直接使用Base64编码方式存储图片，提高兼容性
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        // 确保生成有效的数据URL
-                        const result = reader.result;
-                        if (typeof result === 'string' && result.startsWith('data:')) {
-                            console.log("成功生成图片数据URL");
-                            resolve(result);
-                        } else {
-                            console.error('图片编码异常');
-                            resolve(null);
-                        }
-                    };
-                    reader.onerror = () => {
-                        console.error('读取文件失败');
-                        resolve(null);
-                    };
-                    reader.readAsDataURL(file);
-                });
-            } catch (error) {
-                console.error('图片处理错误:', error);
-                return null;
-            }
-        }
-
-        // 每日签到
-        async function dailyCheckin() {
-            if (!currentUser) {
-                showToast('请先登录', false);
-                return;
-            }
-            
-            const today = new Date().toDateString();
-            
-            // 检查今日是否已签到
-            if (currentUser.last_checkin_date === today) {
-                showToast('今日已签到', false);
-                return;
-            }
-            
-            showLoading(true);
-            
-            try {
-                // 增加积分
-                const newPoints = (currentUser.points || 0) + 5;
-                
-                // 更新用户数据
-                await database.ref(`users/${currentUser.employee_id}`).update({
-                    points: newPoints,
-                    last_checkin_date: today
-                });
-                
-                // 记录积分流水
-                await addPointsLog('checkin', 5, '每日签到');
-                
-                // 更新本地数据
-                currentUser.points = newPoints;
-                currentUser.last_checkin_date = today;
-                
-                // 更新UI
-                document.getElementById('navUserPoints').textContent = newPoints;
-                document.getElementById('profilePoints').textContent = newPoints;
-                document.getElementById('checkinBtn').classList.add('checkin-success');
-                document.getElementById('checkinText').textContent = '已签到';
-                document.getElementById('checkinBtn').disabled = true;
-                document.getElementById('checkinBtn').classList.remove('bg-green-500', 'hover:bg-green-600');
-                document.getElementById('checkinBtn').classList.add('bg-gray-400');
-                
-                showPointsToast(5);
-                showToast('签到成功 +5积分');
-                
-                setTimeout(() => {
-                    document.getElementById('checkinBtn').classList.remove('checkin-success');
-                }, 500);
-            } catch (error) {
-                console.error('签到失败:', error);
-                showToast('签到失败', false);
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // 检查今日是否已签到
-        function checkTodayCheckin() {
-            if (!currentUser) return;
-            
-            const today = new Date().toDateString();
-            
-            if (currentUser.last_checkin_date === today) {
-                // 今日已签到，禁用签到按钮
-                document.getElementById('checkinText').textContent = '已签到';
-                document.getElementById('checkinBtn').disabled = true;
-                document.getElementById('checkinBtn').classList.remove('bg-green-500', 'hover:bg-green-600');
-                document.getElementById('checkinBtn').classList.add('bg-gray-400');
-            } else {
-                // 今日未签到
-                document.getElementById('checkinText').textContent = '签到 +5';
-                document.getElementById('checkinBtn').disabled = false;
-                document.getElementById('checkinBtn').classList.add('bg-green-500', 'hover:bg-green-600');
-                document.getElementById('checkinBtn').classList.remove('bg-gray-400');
-            }
-        }
-
-        // 添加积分记录
-        async function addPointsLog(type, points, reason) {
-            if (!currentUser) return;
-            
-            const logId = generateId();
-            const log = {
-                id: logId,
-                type: type, // checkin, post, reply, liked, excellent
-                points: points,
-                reason: reason,
-                created_at: new Date().toISOString()
-            };
-            
-            await database.ref(`points_logs/${currentUser.employee_id}/${logId}`).set(log);
-        }
-
-        // 增加用户积分
-        async function addUserPoints(employeeId, points, type, reason) {
-            try {
-                const userRef = database.ref(`users/${employeeId}`);
-                const snapshot = await userRef.once('value');
-                
-                if (snapshot.exists()) {
-                    const userData = snapshot.val();
-                    const newPoints = (userData.points || 0) + points;
-                    
-                    await userRef.update({ points: newPoints });
-                    
-                    // 记录积分流水
-                    const logId = generateId();
-                    const log = {
-                        id: logId,
-                        type: type,
-                        points: points,
-                        reason: reason,
-                        created_at: new Date().toISOString()
-                    };
-                    
-                    await database.ref(`points_logs/${employeeId}/${logId}`).set(log);
-                    
-                    // 如果是当前用户，更新UI
-                    if (employeeId === currentUser.employee_id) {
-                        currentUser.points = newPoints;
-                        document.getElementById('navUserPoints').textContent = newPoints;
-                        document.getElementById('profilePoints').textContent = newPoints;
-                        showPointsToast(points);
-                    }
-                }
-            } catch (error) {
-                console.error('增加积分失败:', error);
-            }
-        }
-
-        // 更新用户统计数据
-        async function updateUserStatField(employeeId, field, increment = 1) {
-            try {
-                const userRef = database.ref(`users/${employeeId}/stats/${field}`);
-                await userRef.transaction((current) => {
-                    return (current || 0) + increment;
-                });
-                
-                // 如果是当前用户，更新本地数据
-                if (employeeId === currentUser.employee_id) {
-                    if (!currentUser.stats) currentUser.stats = {};
-                    currentUser.stats[field] = (currentUser.stats[field] || 0) + increment;
-                    updateUserStats();
-                }
-            } catch (error) {
-                console.error('更新统计数据失败:', error);
-            }
-        }
-
-        // 加载用户点赞记录
-        async function loadUserLikes() {
-            if (!currentUser) return;
-            
-            try {
-                const snapshot = await database.ref('post_likes').once('value');
-                userLikes = {};
-                
-                snapshot.forEach((postSnapshot) => {
-                    const postId = postSnapshot.key;
-                    if (postSnapshot.hasChild(currentUser.employee_id)) {
-                        userLikes[postId] = true;
-                    }
-                });
-            } catch (error) {
-                console.error('加载点赞记录失败:', error);
-            }
-        }
-
-        // 创建帖子
-        async function createPost(section) {
-            if (!currentUser) {
-                showToast('请先登录', false);
-                return;
-            }
-            
-            const contentElem = document.getElementById(`${section}PostContent`);
-            const imageElem = document.getElementById(`${section}PostImage`);
-            const content = contentElem.value.trim();
-            const imageFile = imageElem.files[0];
-            
-            if (!content) {
-                showToast('请输入内容', false);
-                return;
-            }
-            
-            showLoading(true);
-            
-            try {
-                let imageUrl = null;
-                
-                // 如果有图片，处理并上传
-                if (imageFile) {
-                    const compressedFile = await compressImage(imageFile);
-                    imageUrl = await uploadImageToImgBB(compressedFile);
-                }
-                
-                // 创建帖子对象
-                const postId = generateId();
-                const newPost = {
-                    id: postId,
-                    author_name: currentUser.name,
-                    author_employee_id: currentUser.employee_id,
-                    author_avatar: currentUser.avatar_url,
-                    content: content,
-                    image_url: imageUrl,
-                    section: section,
-                    is_admin: isAdmin,
-                    is_pinned: false, // 默认不置顶
-                    is_excellent: false, // 默认不是优秀帖子
-                    likes: 0,
-                    created_at: new Date().toISOString()
-                };
-                
-                // 保存到Firebase
-                await database.ref('posts/' + postId).set(newPost);
-                
-                // 增加积分
-                const points = section === 'tech' ? 12 : 8;
-                await addUserPoints(currentUser.employee_id, points, 'post', `发布${section === 'tech' ? '技术' : '日常'}帖子`);
-                
-                // 更新用户发帖数
-                await updateUserStatField(currentUser.employee_id, 'post_count');
-                
-                contentElem.value = '';
-                imageElem.value = '';
-                showToast(`发布成功 +${points}积分`);
-            } catch (error) {
-                console.error('发布失败:', error);
-                showToast('发布失败: ' + error.message, false);
-            } finally {
-                showLoading(false);
-            }
-        }
-        
-        // 渲染帖子
-        function renderPosts(snapshot) {
-            showLoading(true);
-            
-            try {
-                // 清空现有帖子
-                document.getElementById('techPosts').innerHTML = '';
-                document.getElementById('dailyPosts').innerHTML = '';
-                document.getElementById('userPosts').innerHTML = '';
-                
-                const posts = [];
-                snapshot.forEach((childSnapshot) => {
-                    posts.push(childSnapshot.val());
-                });
-                
-                // 修改排序逻辑：置顶帖子在前，然后按时间排序
-                posts.sort((a, b) => {
-                    // 首先按照置顶状态排序
-                    if (a.is_pinned && !b.is_pinned) return -1;
-                    if (!a.is_pinned && b.is_pinned) return 1;
-                    
-                    // 然后按照时间排序，最新的在前面
-                    return new Date(b.created_at) - new Date(a.created_at);
-                });
-                
-                // 渲染到各个板块
-                posts.forEach(post => {
-                    const postElement = createPostElement(post);
-                    
-                    if (post.section === 'tech') {
-                        document.getElementById('techPosts').appendChild(postElement.cloneNode(true));
-                    } else if (post.section === 'daily') {
-                        document.getElementById('dailyPosts').appendChild(postElement.cloneNode(true));
-                    }
-                    
-                    // 如果是当前用户的帖子，也添加到用户板块
-                    if (currentUser && post.author_employee_id === currentUser.employee_id) {
-                        document.getElementById('userPosts').appendChild(postElement);
-                    }
-                });
-                
-                // 添加事件
-                attachPostEvents();
-                
-                // 更新所有回复状态
-                database.ref('replies').once('value').then(updateAllReplies);
-                
-            } catch (error) {
-                console.error('渲染帖子出错:', error);
-                showToast('加载帖子出错', false);
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // 创建帖子DOM元素
-        function createPostElement(post) {
-            const template = document.getElementById('postTemplate');
-            const postElement = template.content.cloneNode(true).querySelector('.post');
-            
-            // 设置帖子ID
-            postElement.dataset.id = post.id;
-            postElement.dataset.authorId = post.author_employee_id;
-            postElement.dataset.section = post.section;
-            
-            // 设置作者信息
-            const avatarElem = postElement.querySelector('.post-avatar');
-            if (post.author_avatar) {
-                avatarElem.src = post.author_avatar;
-            }
-            
-            postElement.querySelector('.post-author').textContent = post.author_name;
-            
-            // 显示管理员标识
-            if (post.is_admin) {
-                postElement.querySelector('.post-admin-badge').classList.remove('hidden');
-            }
-            
-            // 显示置顶标识
-            if (post.is_pinned) {
-                postElement.querySelector('.post-pinned-badge').classList.remove('hidden');
-            }
-            
-            // 显示优秀标识
-            if (post.is_excellent) {
-                postElement.querySelector('.post-excellent-badge').classList.remove('hidden');
-            }
-            
-            // 设置发布时间
-            const date = new Date(post.created_at);
-            postElement.querySelector('.post-time').textContent = date.toLocaleString();
-            
-            // 设置内容
-            postElement.querySelector('.post-content').textContent = post.content;
-            
-            // 增强的图片显示逻辑
-            if (post.image_url) {
-                const imageContainer = postElement.querySelector('.post-image-container');
-                const imageElem = postElement.querySelector('.post-image');
-                
-                // 强制移除hidden类并确保显示
-                imageContainer.classList.remove('hidden');
-                
-                // 设置图片源
-                imageElem.src = post.image_url;
-                
-                // 添加延迟加载和错误处理
-                imageElem.addEventListener('error', function() {
-                    console.error('图片加载失败，尝试重新加载', post.image_url);
-                    setTimeout(() => {
-                        // 尝试添加时间戳刷新缓存
-                        imageElem.src = post.image_url.includes('?') 
-                            ? post.image_url + '&t=' + new Date().getTime() 
-                            : post.image_url + '?t=' + new Date().getTime();
-                    }, 500);
-                });
-            }
-            
-            // 设置点赞数和状态
-            postElement.querySelector('.like-count').textContent = post.likes || 0;
-            
-            // 检查用户是否已点赞
-            if (userLikes[post.id]) {
-                const likeBtn = postElement.querySelector('.like-btn');
-                likeBtn.classList.add('text-blue-500');
-            }
-            
-            // 设置回复区积分提示
-            const replyPoints = post.section === 'tech' ? 4 : 2;
-            postElement.querySelector('.reply-points').textContent = replyPoints;
-            
-            // 如果是当前用户的帖子或管理员，显示删除按钮
-            if (currentUser && (post.author_employee_id === currentUser.employee_id || isAdmin)) {
-                postElement.querySelector('.delete-btn').classList.remove('hidden');
-            }
-            
-            // 如果是管理员，显示置顶/取消置顶按钮和优秀/取消优秀按钮
-            if (isAdmin) {
-                if (post.is_pinned) {
-                    postElement.querySelector('.unpin-btn').classList.remove('hidden');
-                } else {
-                    postElement.querySelector('.pin-btn').classList.remove('hidden');
-                }
-                
-                if (post.is_excellent) {
-                    postElement.querySelector('.unexcellent-btn').classList.remove('hidden');
-                } else {
-                    postElement.querySelector('.excellent-btn').classList.remove('hidden');
-                }
-            }
-            
-            return postElement;
-        }
-
-        // 附加帖子事件（点赞、删除、回复、置顶、设为优秀）
-        function attachPostEvents() {
-            // 点赞事件
-            document.querySelectorAll('.like-btn').forEach(btn => {
-                btn.addEventListener('click', async event => {
-                    if (!currentUser) {
-                        showToast('请先登录', false);
-                        return;
-                    }
-                    
-                    const postElement = event.currentTarget.closest('.post');
-                    const postId = postElement.dataset.id;
-                    const authorId = postElement.dataset.authorId;
-                    
-                    // 检查是否自己的帖子
-                    if (authorId === currentUser.employee_id) {
-                        showToast('不能给自己的帖子点赞', false);
-                        return;
-                    }
-                    
-                    // 检查是否已点赞
-                    if (userLikes[postId]) {
-                        showToast('已经点赞过了', false);
-                        return;
-                    }
-                    
-                    try {
-                        // 记录点赞
-                        await database.ref(`post_likes/${postId}/${currentUser.employee_id}`).set(true);
-                        
-                        // 更新点赞数
-                        await database.ref(`posts/${postId}/likes`).transaction((likes) => {
-                            return (likes || 0) + 1;
-                        });
-                        
-                        // 给作者增加积分
-                        await addUserPoints(authorId, 1, 'liked', '帖子被点赞');
-                        
-                        // 更新作者被点赞数
-                        await updateUserStatField(authorId, 'liked_count');
-                        
-                        // 更新本地缓存
-                        userLikes[postId] = true;
-                        
-                        // 更新UI
-                        event.currentTarget.classList.add('text-blue-500');
-                        
-                        showToast('点赞成功');
-                    } catch (error) {
-                        console.error('点赞失败:', error);
-                        showToast('点赞失败', false);
-                    }
-                });
-            });
-            
-            // 删除事件
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', event => {
-                    if (!currentUser) return;
-                    
-                    const postElement = event.currentTarget.closest('.post');
-                    const postId = postElement.dataset.id;
-                    
-                    if (confirm('确定要删除这条帖子吗？')) {
-                        // 从Firebase删除帖子
-                        database.ref(`posts/${postId}`).remove()
-                            .then(() => {
-                                showToast('删除成功');
-                                
-                                // 同时删除所有相关回复
-                                database.ref('replies').orderByChild('post_id').equalTo(postId).once('value', (snapshot) => {
-                                    snapshot.forEach((childSnapshot) => {
-                                        childSnapshot.ref.remove();
-                                    });
-                                });
-                                
-                                // 删除点赞记录
-                                database.ref(`post_likes/${postId}`).remove();
-                            })
-                            .catch(error => {
-                                console.error('删除失败:', error);
-                                showToast('删除失败', false);
-                            });
-                    }
-                });
-            });
-            
-            // 置顶事件
-            document.querySelectorAll('.pin-btn').forEach(btn => {
-                btn.addEventListener('click', event => {
-                    if (!isAdmin) return;
-                    
-                    const postElement = event.currentTarget.closest('.post');
-                    const postId = postElement.dataset.id;
-                    
-                    // 更新Firebase中的置顶状态
-                    database.ref(`posts/${postId}/is_pinned`).set(true)
-                        .then(() => {
-                            showToast('帖子已置顶');
-                        })
-                        .catch(error => {
-                            console.error('置顶失败:', error);
-                            showToast('置顶失败', false);
-                        });
-                });
-            });
-            
-            // 取消置顶事件
-            document.querySelectorAll('.unpin-btn').forEach(btn => {
-                btn.addEventListener('click', event => {
-                    if (!isAdmin) return;
-                    
-                    const postElement = event.currentTarget.closest('.post');
-                    const postId = postElement.dataset.id;
-                    
-                    // 更新Firebase中的置顶状态
-                    database.ref(`posts/${postId}/is_pinned`).set(false)
-                        .then(() => {
-                            showToast('已取消置顶');
-                        })
-                        .catch(error => {
-                            console.error('取消置顶失败:', error);
-                            showToast('取消置顶失败', false);
-                        });
-                });
-            });
-            
-            // 设为优秀事件
-            document.querySelectorAll('.excellent-btn').forEach(btn => {
-                btn.addEventListener('click', async event => {
-                    if (!isAdmin) return;
-                    
-                    const postElement = event.currentTarget.closest('.post');
-                    const postId = postElement.dataset.id;
-                    const authorId = postElement.dataset.authorId;
-                    
-                    try {
-                        // 更新Firebase中的优秀状态
-                        await database.ref(`posts/${postId}/is_excellent`).set(true);
-                        
-                        // 给作者增加额外积分
-                        await addUserPoints(authorId, 10, 'excellent', '帖子被设为优秀');
-                        
-                        showToast('已设为优秀帖子，作者获得10积分奖励');
-                    } catch (error) {
-                        console.error('设置优秀失败:', error);
-                        showToast('设置失败', false);
-                    }
-                });
-            });
-            
-            // 取消优秀事件
-            document.querySelectorAll('.unexcellent-btn').forEach(btn => {
-                btn.addEventListener('click', event => {
-                    if (!isAdmin) return;
-                    
-                    const postElement = event.currentTarget.closest('.post');
-                    const postId = postElement.dataset.id;
-                    
-                    // 更新Firebase中的优秀状态
-                    database.ref(`posts/${postId}/is_excellent`).set(false)
-                        .then(() => {
-                            showToast('已取消优秀标记');
-                        })
-                        .catch(error => {
-                            console.error('取消优秀失败:', error);
-                            showToast('取消失败', false);
-                        });
-                });
-            });
-            
-            // 回复按钮事件
-            document.querySelectorAll('.reply-btn').forEach(btn => {
-                btn.addEventListener('click', event => {
-                    if (!currentUser) {
-                        showToast('请先登录', false);
-                        return;
-                    }
-                    
-                    const postElement = event.currentTarget.closest('.post');
-                    const repliesSection = postElement.querySelector('.replies-section');
-                    
-                    // 切换回复区域显示/隐藏
-                    if (repliesSection.classList.contains('hidden')) {
-                        repliesSection.classList.remove('hidden');
-                        
-                        // 立即加载此帖子的所有回复
-                        loadRepliesForPost(postElement.dataset.id);
-                    } else {
-                        repliesSection.classList.add('hidden');
-                    }
-                });
-            });
-            
-            // 发送回复事件
-            document.querySelectorAll('.send-reply-btn').forEach(btn => {
-                btn.addEventListener('click', async event => {
-                    if (!currentUser) return;
-                    
-                    const postElement = event.currentTarget.closest('.post');
-                    const postId = postElement.dataset.id;
-                    const section = postElement.dataset.section;
-                    const replyInput = postElement.querySelector('.reply-input');
-                    const content = replyInput.value.trim();
-                    
-                    if (!content) {
-                        showToast('请输入回复内容', false);
-                        return;
-                    }
-                    
-                    try {
-                        // 创建回复对象
-                        const replyId = generateId();
-                        const newReply = {
-                            id: replyId,
-                            post_id: postId,
-                            author_name: currentUser.name,
-                            author_employee_id: currentUser.employee_id,
-                            author_avatar: currentUser.avatar_url,
-                            content: content,
-                            is_admin: isAdmin,
-                            created_at: new Date().toISOString()
-                        };
-                        
-                        // 保存到Firebase
-                        await database.ref('replies/' + replyId).set(newReply);
-                        
-                        // 增加积分
-                        const points = section === 'tech' ? 4 : 2;
-                        await addUserPoints(currentUser.employee_id, points, 'reply', `回复${section === 'tech' ? '技术' : '日常'}帖子`);
-                        
-                        // 更新用户回复数
-                        await updateUserStatField(currentUser.employee_id, 'reply_count');
-                        
-                        replyInput.value = '';
-                        showToast(`回复成功 +${points}积分`);
-                    } catch (error) {
-                        console.error('回复失败:', error);
-                        showToast('回复失败: ' + error.message, false);
-                    }
-                });
-            });
-        }
-
-        // 加载特定帖子的回复
-        function loadRepliesForPost(postId) {
-            const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);
-            
-            database.ref('replies').orderByChild('post_id').equalTo(postId).once('value', (snapshot) => {
-                const replies = [];
-                snapshot.forEach((childSnapshot) => {
-                    replies.push(childSnapshot.val());
-                });
-                
-                // 按创建时间排序
-                replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                
-                postElements.forEach(postElement => {
-                    const repliesContainer = postElement.querySelector('.replies-container');
-                    repliesContainer.innerHTML = '';
-                    
-                    if (replies.length === 0) {
-                        repliesContainer.innerHTML = '<p class="text-gray-500 text-sm text-center">暂无回复</p>';
-                    } else {
-                        replies.forEach(reply => {
-                            repliesContainer.appendChild(createReplyElement(reply));
-                        });
-                    }
-                });
-                
-                // 添加删除回复事件
-                attachReplyEvents();
-            });
-        }
-        
-        // 更新所有回复
-        function updateAllReplies(snapshot) {
-            // 获取所有回复数据
-            const allReplies = {};
-            snapshot.forEach(childSnapshot => {
-                const reply = childSnapshot.val();
-                if (!allReplies[reply.post_id]) {
-                    allReplies[reply.post_id] = [];
-                }
-                allReplies[reply.post_id].push(reply);
-            });
-            
-            // 更新每个帖子的回复显示
-            for (const postId in allReplies) {
-                const postElements = document.querySelectorAll(`.post[data-id="${postId}"]`);
-                
-                // 按创建时间排序
-                allReplies[postId].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                
-                postElements.forEach(postElement => {
-                    // 只有回复区域已经展开的帖子才更新回复
-                    const repliesSection = postElement.querySelector('.replies-section');
-                    if (!repliesSection.classList.contains('hidden')) {
-                        const repliesContainer = postElement.querySelector('.replies-container');
-                        repliesContainer.innerHTML = '';
-                        
-                        allReplies[postId].forEach(reply => {
-                            repliesContainer.appendChild(createReplyElement(reply));
-                        });
-                    }
-                });
-            }
-            
-            // 添加回复事件
-            attachReplyEvents();
-        }
-        
-        // 创建回复元素
-        function createReplyElement(reply) {
-            const template = document.getElementById('replyTemplate');
-            const replyElement = template.content.cloneNode(true).querySelector('.reply');
-            
-            // 设置回复ID
-            replyElement.dataset.id = reply.id;
-            
-            // 设置作者信息
-            const avatarElem = replyElement.querySelector('.reply-avatar');
-            if (reply.author_avatar) {
-                avatarElem.src = reply.author_avatar;
-            }
-            
-            replyElement.querySelector('.reply-author').textContent = reply.author_name;
-            
-            // 显示管理员标识
-            if (reply.is_admin) {
-                replyElement.querySelector('.reply-admin-badge').classList.remove('hidden');
-            }
-            
-            // 设置发布时间
-            const date = new Date(reply.created_at);
-            replyElement.querySelector('.reply-time').textContent = date.toLocaleString();
-            
-            // 设置内容
-            replyElement.querySelector('.reply-content').textContent = reply.content;
-            
-            // 如果是当前用户的回复或管理员，显示删除按钮
-            if (currentUser && (reply.author_employee_id === currentUser.employee_id || isAdmin)) {
-                replyElement.querySelector('.delete-reply-btn').classList.remove('hidden');
-            }
-            
-            return replyElement;
+// =============== 启动逻辑 ===============
+if (!currentUser) {
+  document.getElementById('content').innerHTML = `
+  <h2>请登录</h2>
+  <p>工号：<input id="jobId" /></p>
+  <p>密码：<input id="pwd" type="password" /></p>
+  <button id="loginBtn">登录</button>
+  `;
+  document.getElementById('loginBtn').onclick = async ()=>{
+    const jobId=document.getElementById('jobId').value.trim();
+    const pwd=document.getElementById('pwd').value.trim();
+    if(!jobId||!pwd)return alert("请输入账号密码");
+    const usersSnap=await getDocs(collection(db,"users"));
+    let userFound=null;
+    usersSnap.forEach(d=>{
+      const u=d.data();
+      if(u.jobId===jobId && u.password===pwd) userFound={id:d.id,...u};
+    });
+    if(!userFound) return alert("账号或密码错误");
+    userFound.expire=Date.now()+24*3600*1000;
+    localStorage.setItem("currentUser",JSON.stringify(userFound));
+    currentUser=userFound;
+    renderHome();
+  };
+}else{
+  if(Date.now()>currentUser.expire){
+    localStorage.removeItem("currentUser");
+    alert("会话过期，请重新登录");
+    location.reload();
+  } else {
+    renderHome();
+  }
+}
+</script>
+</body>
+</html>
