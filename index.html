@@ -1,302 +1,1849 @@
 
+```html
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>装备部件团支部青年π空间</title>
-<style>
-body {
-  font-family: 'Segoe UI', sans-serif;
-  margin: 0;
-  background: #f7f9fc;
-  color: #222;
-}
-header {
-  background: #4e73df;
-  color: white;
-  padding: 10px 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-nav button {
-  background: #f8f9fc;
-  color: #333;
-  border: none;
-  margin: 2px 5px;
-  padding: 8px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-nav button:hover {
-  background: #dce1f7;
-}
-.hidden { display: none; }
-.container {
-  padding: 15px;
-}
-.post {
-  background: white;
-  margin: 10px 0;
-  padding: 10px;
-  border-radius: 5px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-}
-.reply {
-  background: #f2f4f8;
-  margin: 5px;
-  padding: 5px 10px;
-  border-radius: 3px;
-}
-.badge {
-  background: #ffcc00;
-  color: #333;
-  padding: 2px 5px;
-  border-radius: 3px;
-  font-size: 12px;
-  margin-left: 6px;
-}
-.scoreboard {
-  background: white;
-  border-radius: 5px;
-  padding: 10px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-table th, table td {
-  padding: 8px;
-  border-bottom: 1px solid #ddd;
-  text-align: left;
-}
-.highlight {
-  background: #fff3cd;
-}
-button.excellent {
-  background-color: #ffc107;
-  color: #333;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>装备部件团支部青年π空间</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body { display: flex; flex-direction: column; min-height: 100vh; }
+        .flex-grow { flex-grow: 1; }
+        .hidden { display: none; }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+    </style>
 </head>
+<body class="bg-gray-100 font-sans">
 
-<body>
-<header>
-  <div><strong>装备部件团支部青年π空间</strong></div>
-  <nav>
-    <button id="nav-home">首页</button>
-    <button id="nav-tech">技术问题</button>
-    <button id="nav-daily">日常问题</button>
-    <button id="nav-points">积分榜</button>
-    <button id="nav-profile">个人中心</button>
-    <button id="logoutBtn">退出</button>
-  </nav>
-</header>
-
-<div class="container" id="content"></div>
-
-<script type="module">
-// ============ Firebase 初始化 ===============
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, setDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { getStorage } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
-
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const storage = getStorage(app);
-
-// =============== 全局状态 ==================
-let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
-
-// =============== 工具函数 =================
-async function modifyPoints(userId, delta) {
-  const ref = doc(db, "users", userId);
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    const data = snap.data();
-    const newPoints = (data.points || 0) + delta;
-    await updateDoc(ref, { points: newPoints });
-    if (currentUser && currentUser.id === userId) {
-      currentUser.points = newPoints;
-      localStorage.setItem("currentUser", JSON.stringify(currentUser));
-    }
-  }
-}
-
-// =============== 页面组件 =================
-async function renderHome() {
-  document.getElementById('content').innerHTML = `
-    <h2>欢迎回来，${currentUser.name}</h2>
-    <p>请选择上方板块浏览帖子或发布新内容。</p>
-  `;
-}
-
-async function renderProfile() {
-  const ref = doc(db, "users", currentUser.id);
-  const s = await getDoc(ref);
-  if (s.exists()) {
-    currentUser = { ...s.data(), id: currentUser.id };
-    localStorage.setItem("currentUser", JSON.stringify(currentUser));
-  }
-  const today = new Date().toISOString().split('T')[0];
-  const checkedIn = currentUser.lastCheckInDate === today;
-  document.getElementById('content').innerHTML = `
-    <h2>个人中心</h2>
-    <p><strong>姓名：</strong>${currentUser.name}</p>
-    <p><strong>工号：</strong>${currentUser.jobId}</p>
-    <p><strong>角色：</strong>${currentUser.role}</p>
-    <p><strong>当前积分：</strong>${currentUser.points || 0}</p>
-    <button id="checkInBtn" ${checkedIn ? "disabled" : ""}>${checkedIn ? "今日已签到" : "签到 +5"}</button>
-  `;
-  document.getElementById('checkInBtn').onclick = async () => {
-    const today = new Date().toISOString().split('T')[0];
-    if (currentUser.lastCheckInDate === today) {
-      alert("今日已签到");
-      return;
-    }
-    await modifyPoints(currentUser.id, 5);
-    await updateDoc(ref, { lastCheckInDate: today });
-    alert("签到成功 +5 分！");
-    renderProfile();
-  };
-}
-
-async function renderPointsBoard() {
-  const q = collection(db, "users");
-  const snap = await getDocs(q);
-  let users = [];
-  snap.forEach(d => users.push({id:d.id, ...d.data()}));
-  users.sort((a,b)=> (b.points||0)-(a.points||0));
-  const rows = users.map(u=>`
-    <tr ${currentUser.id===u.id?'class="highlight"':''}>
-      <td>${u.name}</td>
-      <td>${u.jobId}</td>
-      <td>${u.role}</td>
-      <td>${u.points || 0}</td>
-    </tr>`).join('');
-  document.getElementById('content').innerHTML = `
-    <h2>🏅 积分榜</h2>
-    <div class="scoreboard">
-      <table>
-        <thead><tr><th>姓名</th><th>工号</th><th>角色</th><th>积分</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-purple-500"></div>
     </div>
-  `;
-}
 
-async function renderBoard(boardType) {
-  const q = query(collection(db, "posts"), where("board", "==", boardType), orderBy("timestamp", "desc"));
-  const snap = await getDocs(q);
-  let posts = [];
-  snap.forEach(d=> posts.push({id:d.id, ...d.data()}));
-  let html = `<h2>${boardType==="tech"?"技术问题":"日常问题"}</h2>
-  <button id="newPost">发布帖子</button>`;
-  posts.sort((a,b)=>{
-    if (a.pinned && !b.pinned) return -1;
-    if (!a.pinned && b.pinned) return 1;
-    return b.timestamp - a.timestamp;
-  });
-  for (const p of posts) {
-    html += `
-    <div class="post">
-      <p><strong>${p.authorName}</strong> ${p.role==="admin"||p.role==="sysadmin"?'<span class="badge">管理员</span>':''}
-      ${p.excellent?'<span class="badge">优秀帖</span>':''}</p>
-      <p>${p.content}</p>
-      <button data-id="${p.id}" class="likeBtn">👍${p.likes||0}</button>
-      ${currentUser.role==="admin" || currentUser.role==="sysadmin"
-        ?`<button data-id="${p.id}" class="excellent">设为优秀</button>`:""}
-    </div>`;
-  }
-  document.getElementById('content').innerHTML = html;
-  document.querySelectorAll('.excellent').forEach(btn=>{
-    btn.onclick = async ()=>{
-      const id=btn.dataset.id;
-      const postRef=doc(db,"posts",id);
-      const snap=await getDoc(postRef);
-      if(!snap.exists())return;
-      const postData=snap.data();
-      if(postData.excellent) {alert("已是优秀帖");return;}
-      await updateDoc(postRef,{excellent:true});
-      await modifyPoints(postData.authorId,10);
-      alert("标记为优秀帖并奖励作者+10分");
-      renderBoard(boardType);
-    }
-  });
-  document.getElementById('newPost').onclick = async ()=>{
-    const content=prompt("请输入帖子内容：");
-    if(!content)return;
-    const newPost={
-      content, board:boardType,
-      authorId:currentUser.id,
-      authorName:currentUser.name,
-      role:currentUser.role,
-      likes:0,
-      pinned:false,
-      excellent:false,
-      timestamp:Date.now()
-    };
-    await addDoc(collection(db,"posts"), newPost);
-    await modifyPoints(currentUser.id,10);
-    alert("发帖成功 +10分！");
-    renderBoard(boardType);
-  };
-}
+    <!-- Navigation Bar -->
+    <nav class="bg-gradient-to-r from-purple-600 to-blue-600 p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="#" class="text-white text-3xl font-bold tracking-wide">青年π空间</a>
+            <div id="userNav" class="flex items-center space-x-4">
+                <span id="userPointsDisplay" class="text-white text-lg font-semibold mr-4 hidden">积分: 0</span>
+                <button id="checkInButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-full shadow-md hidden">
+                    签到
+                </button>
+                <img id="navUserAvatar" class="w-10 h-10 rounded-full cursor-pointer border-2 border-white object-cover hidden" alt="User Avatar">
+                <span id="navUserName" class="text-white text-lg font-semibold hidden"></span>
+                <button id="editProfileButton" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-full shadow-md hidden">
+                    编辑信息
+                </button>
+                <button id="userManagementButton" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-full shadow-md hidden">
+                    用户管理
+                </button>
+                <button id="adminPanelButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full shadow-md hidden">
+                    管理员设置
+                </button>
+                <button id="logoutButton" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full shadow-md hidden">
+                    退出登录
+                </button>
+            </div>
+        </div>
+    </nav>
 
-// =============== 初始化绑定 ===============
-document.getElementById("logoutBtn").onclick = ()=>{
-  localStorage.removeItem("currentUser");
-  location.reload();
-};
-document.getElementById("nav-home").onclick = renderHome;
-document.getElementById("nav-profile").onclick = renderProfile;
-document.getElementById("nav-points").onclick = renderPointsBoard;
-document.getElementById("nav-tech").onclick = ()=>renderBoard("tech");
-document.getElementById("nav-daily").onclick = ()=>renderBoard("daily");
+    <!-- Main Content Area -->
+    <div class="container mx-auto px-4 py-6 flex-grow">
 
-// =============== 启动逻辑 ===============
-if (!currentUser) {
-  document.getElementById('content').innerHTML = `
-  <h2>请登录</h2>
-  <p>工号：<input id="jobId" /></p>
-  <p>密码：<input id="pwd" type="password" /></p>
-  <button id="loginBtn">登录</button>
-  `;
-  document.getElementById('loginBtn').onclick = async ()=>{
-    const jobId=document.getElementById('jobId').value.trim();
-    const pwd=document.getElementById('pwd').value.trim();
-    if(!jobId||!pwd)return alert("请输入账号密码");
-    const usersSnap=await getDocs(collection(db,"users"));
-    let userFound=null;
-    usersSnap.forEach(d=>{
-      const u=d.data();
-      if(u.jobId===jobId && u.password===pwd) userFound={id:d.id,...u};
-    });
-    if(!userFound) return alert("账号或密码错误");
-    userFound.expire=Date.now()+24*3600*1000;
-    localStorage.setItem("currentUser",JSON.stringify(userFound));
-    currentUser=userFound;
-    renderHome();
-  };
-}else{
-  if(Date.now()>currentUser.expire){
-    localStorage.removeItem("currentUser");
-    alert("会话过期，请重新登录");
-    location.reload();
-  } else {
-    renderHome();
-  }
-}
-</script>
+        <!-- Login Form -->
+        <div id="loginContainer" class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-xl mt-10">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">登录</h2>
+            <div class="mb-5">
+                <label for="loginEmployeeId" class="block text-gray-700 text-sm font-bold mb-2">工号:</label>
+                <input type="text" id="loginEmployeeId" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="请输入工号">
+            </div>
+            <div class="mb-6">
+                <label for="loginPassword" class="block text-gray-700 text-sm font-bold mb-2">密码:</label>
+                <input type="password" id="loginPassword" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" placeholder="请输入密码">
+            </div>
+            <div class="flex items-center justify-between">
+                <button id="loginBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full focus:outline-none focus:shadow-outline transition duration-300">
+                    登录
+                </button>
+                <button id="showRegisterFormBtn" class="inline-block align-baseline font-bold text-sm text-purple-600 hover:text-purple-800">
+                    没有账号？注册
+                </button>
+            </div>
+        </div>
+
+        <!-- Register Form -->
+        <div id="registerContainer" class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-xl mt-10 hidden">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">注册</h2>
+            <div class="mb-4">
+                <label for="registerName" class="block text-gray-700 text-sm font-bold mb-2">姓名:</label>
+                <input type="text" id="registerName" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="请输入姓名">
+            </div>
+            <div class="mb-4">
+                <label for="registerEmployeeId" class="block text-gray-700 text-sm font-bold mb-2">工号:</label>
+                <input type="text" id="registerEmployeeId" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="请输入工号">
+            </div>
+            <div class="mb-4">
+                <label for="registerPassword" class="block text-gray-700 text-sm font-bold mb-2">密码:</label>
+                <input type="password" id="registerPassword" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="请输入密码">
+            </div>
+            <div class="mb-4">
+                <label for="confirmPassword" class="block text-gray-700 text-sm font-bold mb-2">确认密码:</label>
+                <input type="password" id="confirmPassword" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="请再次输入密码">
+            </div>
+            <div class="mb-6">
+                <label for="registerAvatar" class="block text-gray-700 text-sm font-bold mb-2">头像 (可选):</label>
+                <input type="file" id="registerAvatar" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
+            </div>
+            <div class="flex items-center justify-between">
+                <button id="registerBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full focus:outline-none focus:shadow-outline transition duration-300">
+                    注册
+                </button>
+                <button id="showLoginFormBtn" class="inline-block align-baseline font-bold text-sm text-green-600 hover:text-green-800">
+                    已有账号？登录
+                </button>
+            </div>
+        </div>
+
+        <!-- Edit User Info Form -->
+        <div id="userInfoContainer" class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-xl mt-10 hidden">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">编辑个人信息</h2>
+            <div class="mb-4 text-center">
+                <img id="currentAvatar" class="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-2 border-gray-300" alt="Current Avatar">
+                <label for="editAvatar" class="block text-gray-700 text-sm font-bold mb-2">更换头像:</label>
+                <input type="file" id="editAvatar" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
+            </div>
+            <div class="mb-4">
+                <label for="editName" class="block text-gray-700 text-sm font-bold mb-2">姓名:</label>
+                <input type="text" id="editName" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="请输入姓名">
+            </div>
+            <div class="mb-4">
+                <label for="editPassword" class="block text-gray-700 text-sm font-bold mb-2">新密码 (留空则不修改):</label>
+                <input type="password" id="editPassword" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="请输入新密码">
+            </div>
+            <div class="mb-6">
+                <label for="confirmEditPassword" class="block text-gray-700 text-sm font-bold mb-2">确认新密码:</label>
+                <input type="password" id="confirmEditPassword" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="请再次输入新密码">
+            </div>
+            <div class="flex items-center justify-between">
+                <button id="updateInfoBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full focus:outline-none focus:shadow-outline transition duration-300">
+                    更新信息
+                </button>
+                <button id="cancelEditBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-full focus:outline-none focus:shadow-outline transition duration-300">
+                    取消
+                </button>
+            </div>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanelContainer" class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-xl mt-10 hidden">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">管理员设置</h2>
+
+            <!-- Add Admin Section (Only for System Admin) -->
+            <div id="addAdminSection" class="mb-8 p-6 bg-blue-50 rounded-lg shadow-inner hidden">
+                <h3 class="text-2xl font-bold text-gray-700 mb-4">添加管理员</h3>
+                <div class="flex space-x-4 mb-4">
+                    <input type="text" id="newAdminEmployeeId" class="flex-grow shadow appearance-none border rounded py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="请输入要添加的管理员工号">
+                    <button id="addAdminBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full focus:outline-none focus:shadow-outline transition duration-300">
+                        添加
+                    </button>
+                </div>
+            </div>
+
+            <!-- Current Admins List -->
+            <div>
+                <h3 class="text-2xl font-bold text-gray-700 mb-4">当前管理员列表</h3>
+                <ul id="adminList" class="space-y-3">
+                    <!-- Admin items will be loaded here -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- User Management Panel (Only for System Admin) -->
+        <div id="userManagementContainer" class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-xl mt-10 hidden">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">用户管理</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <thead>
+                        <tr class="bg-gray-100 border-b border-gray-200">
+                            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">头像</th>
+                            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">工号</th>
+                            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">积分</th>
+                            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">管理员</th>
+                            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody" class="divide-y divide-gray-200">
+                        <!-- User rows will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <!-- Main Content (after login) -->
+        <div id="mainContainer" class="hidden">
+            <div class="flex justify-center mb-6 space-x-4">
+                <button id="showTechSectionBtn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300">
+                    技术问题板块
+                </button>
+                <button id="showDailySectionBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300">
+                    日常问题板块
+                </button>
+                <button id="showUserSectionBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300">
+                    我的主页
+                </button>
+            </div>
+
+            <!-- Technical Issues Section -->
+            <div id="techSection" class="bg-white p-8 rounded-lg shadow-xl mb-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">技术问题板块</h2>
+                <div class="mb-6">
+                    <textarea id="techPostContent" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline h-32 resize-none" placeholder="分享你的技术问题或经验..."></textarea>
+                    <input type="file" id="techPostImage" accept="image/*" class="mt-3 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <button id="submitTechPostBtn" class="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full focus:outline-none focus:shadow-outline transition duration-300">
+                        发布
+                    </button>
+                </div>
+                <div id="techPosts" class="space-y-6">
+                    <!-- Technical posts will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Daily Life Section -->
+            <div id="dailySection" class="bg-white p-8 rounded-lg shadow-xl mb-8 hidden">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">日常问题板块</h2>
+                <div class="mb-6">
+                    <textarea id="dailyPostContent" class="shadow appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline h-32 resize-none" placeholder="分享你的日常见闻或疑问..."></textarea>
+                    <input type="file" id="dailyPostImage" accept="image/*" class="mt-3 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+                    <button id="submitDailyPostBtn" class="mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full focus:outline-none focus:shadow-outline transition duration-300">
+                        发布
+                    </button>
+                </div>
+                <div id="dailyPosts" class="space-y-6">
+                    <!-- Daily posts will be loaded here -->
+                </div>
+            </div>
+
+            <!-- User Profile Section -->
+            <div id="userSection" class="bg-white p-8 rounded-lg shadow-xl mb-8 hidden">
+                <div class="flex items-center space-x-6 mb-8 pb-4 border-b border-gray-200">
+                    <img id="userProfileAvatar" class="w-24 h-24 rounded-full object-cover border-4 border-purple-300" alt="User Profile Avatar">
+                    <div>
+                        <h2 id="userProfileName" class="text-3xl font-bold text-gray-800"></h2>
+                        <p id="userProfileEmployeeId" class="text-gray-600 text-lg"></p>
+                        <p id="userProfileAdminStatus" class="text-purple-600 font-semibold mt-1 hidden">管理员</p>
+                        <p id="userProfilePoints" class="text-indigo-600 font-semibold mt-1">积分: 0</p>
+                    </div>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">我的帖子</h3>
+                <div id="userPosts" class="space-y-6">
+                    <!-- User's posts will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="statusToast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg transition-opacity duration-300 hidden opacity-0">
+        操作成功！
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white text-center p-4 mt-auto">
+        &copy; 2023 装备部件团支部. All rights reserved.
+    </footer>
+
+    <!-- Templates for dynamic content -->
+    <template id="postTemplate">
+        <div class="post-card bg-gray-50 p-6 rounded-lg shadow-md border border-gray-200 flex flex-col">
+            <div class="flex items-center mb-4">
+                <img class="post-avatar w-12 h-12 rounded-full object-cover border-2 border-purple-300 mr-4" alt="User Avatar">
+                <div>
+                    <div class="flex items-center">
+                        <span class="post-user-name font-bold text-lg text-gray-800"></span>
+                        <span class="post-admin-badge bg-blue-500 text-white text-xs px-2 py-1 rounded-full ml-2 hidden">管理员</span>
+                    </div>
+                    <p class="post-timestamp text-sm text-gray-500"></p>
+                </div>
+            </div>
+            <p class="post-content text-gray-700 leading-relaxed mb-4"></p>
+            <img class="post-image w-full h-auto rounded-lg mb-4 object-cover hidden" alt="Post Image">
+            <div class="flex items-center justify-between border-t border-gray-200 pt-4 mt-auto">
+                <div class="flex space-x-4">
+                    <button class="like-btn flex items-center text-gray-600 hover:text-red-500 transition duration-200">
+                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>
+                        <span class="like-count">0</span>
+                    </button>
+                    <button class="comment-toggle-btn flex items-center text-gray-600 hover:text-blue-500 transition duration-200">
+                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4v-4H4a2 2 0 01-2-2V5z"></path></svg>
+                        <span>评论</span>
+                    </button>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="delete-post-btn bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1 rounded-full hidden">删除</button>
+                    <button class="toggle-top-btn bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1 rounded-full hidden">置顶</button>
+                </div>
+            </div>
+            <div class="comments-section mt-4 pt-4 border-t border-gray-200 hidden">
+                <div class="new-comment mb-4 flex space-x-2">
+                    <input type="text" class="comment-input flex-grow shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="发表评论...">
+                    <button class="submit-comment-btn bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-2 rounded-full">评论</button>
+                </div>
+                <div class="replies-list space-y-3">
+                    <!-- Replies will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="replyTemplate">
+        <div class="reply-card bg-gray-100 p-4 rounded-lg flex items-start space-x-3">
+            <img class="reply-avatar w-8 h-8 rounded-full object-cover border border-gray-300" alt="Reply User Avatar">
+            <div class="flex-grow">
+                <div class="flex items-center mb-1">
+                    <span class="reply-user-name font-semibold text-gray-700 text-sm"></span>
+                    <span class="reply-admin-badge bg-blue-400 text-white text-xs px-1.5 py-0.5 rounded-full ml-2 hidden">管理员</span>
+                    <span class="reply-timestamp text-xs text-gray-500 ml-auto"></span>
+                </div>
+                <p class="reply-content text-gray-600 text-sm"></p>
+            </div>
+            <button class="delete-reply-btn text-red-400 hover:text-red-600 text-xs hidden">删除</button>
+        </div>
+    </template>
+
+    <template id="adminItemTemplate">
+        <li class="admin-item flex items-center justify-between p-3 bg-gray-50 rounded-md shadow-sm">
+            <div class="flex items-center">
+                <img class="admin-avatar w-10 h-10 rounded-full object-cover border-2 border-gray-300 mr-3" alt="Admin Avatar">
+                <span class="admin-name font-medium text-gray-800"></span>
+                <span class="admin-employee-id text-gray-600 ml-2 text-sm"></span>
+            </div>
+            <button class="remove-admin-btn bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1 rounded-full hidden">移除</button>
+        </li>
+    </template>
+
+
+    <script>
+        // Firebase Configuration (Replace with your actual Firebase config)
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            databaseURL: "YOUR_DATABASE_URL",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const usersRef = database.ref('users');
+        const postsRef = database.ref('posts');
+        const adminsRef = database.ref('admins');
+
+        // Global state
+        let currentUser = null;
+        let isAdmin = false;
+        let isSystemAdmin = false;
+        const SYSTEM_ADMIN_EMPLOYEE_ID = "admin001"; // Define your system admin employee ID here
+
+        // --- Utility Functions ---
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        function showToast(message, isSuccess = true) {
+            const toast = document.getElementById('statusToast');
+            toast.textContent = message;
+            toast.classList.remove('hidden', 'opacity-0', 'bg-red-500');
+            toast.classList.add('opacity-100', isSuccess ? 'bg-gray-800' : 'bg-red-500'); // Use red for error toast
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+                toast.addEventListener('transitionend', () => {
+                    toast.classList.add('hidden');
+                }, { once: true });
+            }, 3000);
+        }
+
+        function hashPassword(password) {
+            return CryptoJS.SHA256(password).toString();
+        }
+
+        function generateId() {
+            return database.ref().push().key;
+        }
+
+        function getFormattedTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric', month: 'numeric', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: false
+            });
+        }
+
+        async function compressImage(file, { quality = 0.8, maxWidth = 800, maxHeight = 600 } = {}) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = event => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height *= maxWidth / width;
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width *= maxHeight / height;
+                                height = maxHeight;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        canvas.toBlob(blob => {
+                            if (blob) {
+                                resolve(blob);
+                            } else {
+                                reject(new Error('Canvas to Blob failed'));
+                            }
+                        }, 'image/jpeg', quality);
+                    };
+                    img.onerror = error => reject(error);
+                };
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadImageToImgBB(imageBlob) {
+            return new Promise(async (resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    resolve(reader.result); // This will be the base64 data URL
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(imageBlob);
+            });
+        }
+
+        // --- UI Element References ---
+        const loginContainer = document.getElementById('loginContainer');
+        const registerContainer = document.getElementById('registerContainer');
+        const userInfoContainer = document.getElementById('userInfoContainer');
+        const adminPanelContainer = document.getElementById('adminPanelContainer');
+        const userManagementContainer = document.getElementById('userManagementContainer');
+        const mainContainer = document.getElementById('mainContainer');
+
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        const logoutButton = document.getElementById('logoutButton');
+        const editProfileButton = document.getElementById('editProfileButton');
+        const adminPanelButton = document.getElementById('adminPanelButton');
+        const userManagementButton = document.getElementById('userManagementButton');
+
+        const showRegisterFormBtn = document.getElementById('showRegisterFormBtn');
+        const showLoginFormBtn = document.getElementById('showLoginFormBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const updateInfoBtn = document.getElementById('updateInfoBtn');
+
+        const submitTechPostBtn = document.getElementById('submitTechPostBtn');
+        const submitDailyPostBtn = document.getElementById('submitDailyPostBtn');
+
+        const showTechSectionBtn = document.getElementById('showTechSectionBtn');
+        const showDailySectionBtn = document.getElementById('showDailySectionBtn');
+        const showUserSectionBtn = document.getElementById('showUserSectionBtn');
+
+        const techSection = document.getElementById('techSection');
+        const dailySection = document.getElementById('dailySection');
+        const userSection = document.getElementById('userSection');
+
+        const navUserAvatar = document.getElementById('navUserAvatar');
+        const navUserName = document.getElementById('navUserName');
+        const userPointsDisplay = document.getElementById('userPointsDisplay'); // New: User points display
+
+        const userProfileAvatar = document.getElementById('userProfileAvatar');
+        const userProfileName = document.getElementById('userProfileName');
+        const userProfileEmployeeId = document.getElementById('userProfileEmployeeId');
+        const userProfileAdminStatus = document.getElementById('userProfileAdminStatus');
+        const userProfilePoints = document.getElementById('userProfilePoints'); // New: User profile points
+
+        const checkInButton = document.getElementById('checkInButton'); // New: Check-in button
+
+        // --- Authentication & User Management ---
+        function saveSession(user) {
+            sessionStorage.setItem('currentUser', JSON.stringify(user));
+            currentUser = user;
+            checkAndUpdateAdminStatus();
+            updateNavUI();
+            updateCheckInButtonState(); // New: Update check-in button state on login
+        }
+
+        function clearSession() {
+            sessionStorage.removeItem('currentUser');
+            currentUser = null;
+            isAdmin = false;
+            isSystemAdmin = false;
+            updateNavUI();
+            hideAllContainers();
+            loginContainer.classList.remove('hidden');
+        }
+
+        function checkLoginStatus() {
+            const storedUser = sessionStorage.getItem('currentUser');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                checkAndUpdateAdminStatus();
+                showMainUI();
+                updateNavUI();
+                updateCheckInButtonState(); // New: Update check-in button state on page load
+            } else {
+                hideAllContainers();
+                loginContainer.classList.remove('hidden');
+            }
+        }
+
+        async function login() {
+            showLoading();
+            const employeeId = document.getElementById('loginEmployeeId').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (employeeId === SYSTEM_ADMIN_EMPLOYEE_ID && password === "admin123") { // System Admin login
+                currentUser = {
+                    id: SYSTEM_ADMIN_EMPLOYEE_ID,
+                    name: "系统管理员",
+                    employeeId: SYSTEM_ADMIN_EMPLOYEE_ID,
+                    avatar: "https://via.placeholder.com/150/FF0000/FFFFFF?text=SA",
+                    isAdmin: true,
+                    isSystemAdmin: true,
+                    points: 0, // System admin also has points
+                    lastCheckInDate: null
+                };
+                saveSession(currentUser);
+                hideAllContainers();
+                showMainUI();
+                hideLoading();
+                showToast("系统管理员登录成功！");
+                return;
+            }
+
+            const userSnapshot = await usersRef.orderByChild('employeeId').equalTo(employeeId).once('value');
+            hideLoading();
+            if (userSnapshot.exists()) {
+                const userData = userSnapshot.val();
+                const userId = Object.keys(userData)[0];
+                const user = userData[userId];
+
+                if (user.password === hashPassword(password)) {
+                    // Ensure points and lastCheckInDate exist
+                    if (user.points === undefined) user.points = 0;
+                    if (user.lastCheckInDate === undefined) user.lastCheckInDate = null;
+
+                    currentUser = { id: userId, ...user };
+                    saveSession(currentUser);
+                    hideAllContainers();
+                    showMainUI();
+                    showToast("登录成功！");
+                } else {
+                    showToast("密码错误！", false);
+                }
+            } else {
+                showToast("工号不存在！", false);
+            }
+        }
+
+        async function register() {
+            showLoading();
+            const name = document.getElementById('registerName').value;
+            const employeeId = document.getElementById('registerEmployeeId').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const avatarFile = document.getElementById('registerAvatar').files[0];
+
+            if (!name || !employeeId || !password || !confirmPassword) {
+                hideLoading();
+                showToast("所有字段均为必填项！", false);
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                hideLoading();
+                showToast("两次输入的密码不一致！", false);
+                return;
+            }
+            if (password.length < 6) {
+                hideLoading();
+                showToast("密码至少需要6位！", false);
+                return;
+            }
+
+            const userSnapshot = await usersRef.orderByChild('employeeId').equalTo(employeeId).once('value');
+            if (userSnapshot.exists()) {
+                hideLoading();
+                showToast("该工号已被注册！", false);
+                return;
+            }
+
+            let avatarUrl = "https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User"; // Default avatar
+            if (avatarFile) {
+                try {
+                    const compressedBlob = await compressImage(avatarFile);
+                    avatarUrl = await uploadImageToImgBB(compressedBlob);
+                } catch (error) {
+                    console.error("Error uploading avatar:", error);
+                    showToast("头像上传失败，将使用默认头像。", false);
+                }
+            }
+
+            const newUserRef = usersRef.push();
+            const userId = newUserRef.key;
+            await newUserRef.set({
+                name,
+                employeeId,
+                password: hashPassword(password),
+                avatar: avatarUrl,
+                isAdmin: false,
+                isSystemAdmin: false,
+                points: 0, // New: Initialize points for new users
+                lastCheckInDate: null // New: Initialize lastCheckInDate
+            });
+
+            hideLoading();
+            showToast("注册成功！请登录。");
+            hideAllContainers();
+            loginContainer.classList.remove('hidden');
+            // Clear register form
+            document.getElementById('registerName').value = '';
+            document.getElementById('registerEmployeeId').value = '';
+            document.getElementById('registerPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            document.getElementById('registerAvatar').value = '';
+        }
+
+        function logout() {
+            clearSession();
+            showToast("退出登录成功！");
+        }
+
+        async function updateUserInfo() {
+            showLoading();
+            const newName = document.getElementById('editName').value;
+            const newPassword = document.getElementById('editPassword').value;
+            const confirmNewPassword = document.getElementById('confirmEditPassword').value;
+            const newAvatarFile = document.getElementById('editAvatar').files[0];
+
+            if (!newName) {
+                hideLoading();
+                showToast("姓名不能为空！", false);
+                return;
+            }
+
+            if (newPassword && newPassword.length < 6) {
+                hideLoading();
+                showToast("新密码至少需要6位！", false);
+                return;
+            }
+
+            if (newPassword && newPassword !== confirmNewPassword) {
+                hideLoading();
+                showToast("两次输入的新密码不一致！", false);
+                return;
+            }
+
+            const updates = {};
+            let newAvatarUrl = currentUser.avatar;
+
+            if (newAvatarFile) {
+                try {
+                    const compressedBlob = await compressImage(newAvatarFile);
+                    newAvatarUrl = await uploadImageToImgBB(compressedBlob);
+                    updates.avatar = newAvatarUrl;
+                } catch (error) {
+                    console.error("Error updating avatar:", error);
+                    showToast("头像上传失败，将保留原头像。", false);
+                }
+            }
+
+            if (newName !== currentUser.name) {
+                updates.name = newName;
+            }
+            if (newPassword) {
+                updates.password = hashPassword(newPassword);
+            }
+
+            if (Object.keys(updates).length > 0) {
+                await usersRef.child(currentUser.id).update(updates);
+
+                // Update current user in session
+                currentUser = { ...currentUser, ...updates };
+                saveSession(currentUser);
+
+                // Update posts and replies with new avatar/name
+                if (updates.avatar) {
+                    updatePostsWithNewAvatar(currentUser.id, newAvatarUrl);
+                    updateRepliesWithNewAvatar(currentUser.id, newAvatarUrl);
+                }
+                if (updates.name) {
+                    updatePostsWithNewName(currentUser.id, newName);
+                    updateRepliesWithNewName(currentUser.id, newName);
+                }
+
+                showToast("用户信息更新成功！");
+            } else {
+                showToast("没有信息被修改。", false);
+            }
+
+            hideLoading();
+            hideAllContainers();
+            showMainUI(); // Go back to main UI after editing
+            // Clear password fields
+            document.getElementById('editPassword').value = '';
+            document.getElementById('confirmEditPassword').value = '';
+            document.getElementById('editAvatar').value = '';
+        }
+
+        async function updateAvatar(userId, avatarUrl) {
+            await usersRef.child(userId).update({ avatar: avatarUrl });
+            if (currentUser && currentUser.id === userId) {
+                currentUser.avatar = avatarUrl;
+                saveSession(currentUser);
+            }
+        }
+
+        async function checkAndUpdateAdminStatus() {
+            if (!currentUser || !currentUser.id) {
+                isAdmin = false;
+                isSystemAdmin = false;
+                return;
+            }
+
+            if (currentUser.employeeId === SYSTEM_ADMIN_EMPLOYEE_ID) {
+                isSystemAdmin = true;
+                isAdmin = true;
+            } else {
+                const adminSnapshot = await adminsRef.child(currentUser.id).once('value');
+                isAdmin = adminSnapshot.exists();
+                isSystemAdmin = false; // Only the specific SYSTEM_ADMIN_EMPLOYEE_ID can be system admin
+            }
+
+            // Update user's isAdmin status in Firebase if there's a discrepancy
+            // This handles cases where an admin is added/removed from admin panel but their user data isn't updated yet
+            if (currentUser.isAdmin !== isAdmin || currentUser.isSystemAdmin !== isSystemAdmin) {
+                 usersRef.child(currentUser.id).update({
+                    isAdmin: isAdmin,
+                    isSystemAdmin: isSystemAdmin
+                });
+                currentUser.isAdmin = isAdmin;
+                currentUser.isSystemAdmin = isSystemAdmin;
+                saveSession(currentUser); // Update session with correct status
+            }
+        }
+
+        function updateNavUI() {
+            if (currentUser) {
+                navUserAvatar.src = currentUser.avatar || "https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User";
+                navUserName.textContent = currentUser.name;
+                userPointsDisplay.textContent = `积分: ${currentUser.points || 0}`; // New: Display points
+                navUserAvatar.classList.remove('hidden');
+                navUserName.classList.remove('hidden');
+                userPointsDisplay.classList.remove('hidden'); // New: Show points display
+                logoutButton.classList.remove('hidden');
+                editProfileButton.classList.remove('hidden');
+                checkInButton.classList.remove('hidden'); // New: Show check-in button
+
+                if (isAdmin) {
+                    adminPanelButton.classList.remove('hidden');
+                } else {
+                    adminPanelButton.classList.add('hidden');
+                }
+                if (isSystemAdmin) {
+                    userManagementButton.classList.remove('hidden');
+                } else {
+                    userManagementButton.classList.add('hidden');
+                }
+            } else {
+                navUserAvatar.classList.add('hidden');
+                navUserName.classList.add('hidden');
+                userPointsDisplay.classList.add('hidden'); // New: Hide points display
+                logoutButton.classList.add('hidden');
+                editProfileButton.classList.add('hidden');
+                adminPanelButton.classList.add('hidden');
+                userManagementButton.classList.add('hidden');
+                checkInButton.classList.add('hidden'); // New: Hide check-in button
+            }
+        }
+
+        // --- Admin Panel Logic ---
+        function initializeAdminList() {
+            adminsRef.on('value', async (snapshot) => {
+                const adminListUl = document.getElementById('adminList');
+                adminListUl.innerHTML = ''; // Clear existing list
+
+                if (snapshot.exists()) {
+                    const adminIds = Object.keys(snapshot.val());
+                    for (const adminId of adminIds) {
+                        const userSnapshot = await usersRef.child(adminId).once('value');
+                        if (userSnapshot.exists()) {
+                            const adminData = userSnapshot.val();
+                            if (adminData.employeeId === SYSTEM_ADMIN_EMPLOYEE_ID) continue; // Don't list system admin in removable list
+
+                            const template = document.getElementById('adminItemTemplate');
+                            const adminItem = template.content.cloneNode(true);
+                            adminItem.querySelector('.admin-avatar').src = adminData.avatar || "https://via.placeholder.com/150/CCCCCC/FFFFFF?text=Admin";
+                            adminItem.querySelector('.admin-name').textContent = adminData.name;
+                            adminItem.querySelector('.admin-employee-id').textContent = `(${adminData.employeeId})`;
+
+                            const removeBtn = adminItem.querySelector('.remove-admin-btn');
+                            if (isSystemAdmin) {
+                                removeBtn.classList.remove('hidden');
+                                removeBtn.addEventListener('click', () => removeAdmin(adminId, adminData.employeeId));
+                            }
+
+                            adminListUl.appendChild(adminItem);
+                        }
+                    }
+                }
+            });
+        }
+
+
+        async function addNewAdmin() {
+            if (!isSystemAdmin) {
+                showToast("您没有权限进行此操作！", false);
+                return;
+            }
+
+            const employeeId = document.getElementById('newAdminEmployeeId').value;
+            if (!employeeId) {
+                showToast("请输入工号！", false);
+                return;
+            }
+            if (employeeId === SYSTEM_ADMIN_EMPLOYEE_ID) {
+                showToast("系统管理员无法被添加/移除。", false);
+                return;
+            }
+
+            showLoading();
+            const userSnapshot = await usersRef.orderByChild('employeeId').equalTo(employeeId).once('value');
+            hideLoading();
+
+            if (userSnapshot.exists()) {
+                const userData = userSnapshot.val();
+                const userId = Object.keys(userData)[0];
+
+                // Check if already admin
+                const adminSnapshot = await adminsRef.child(userId).once('value');
+                if (adminSnapshot.exists()) {
+                    showToast(`${employeeId} 已经是管理员了。`, false);
+                    return;
+                }
+
+                await adminsRef.child(userId).set(true);
+                await usersRef.child(userId).update({ isAdmin: true });
+                showToast(`${employeeId} 已被设为管理员。`);
+                document.getElementById('newAdminEmployeeId').value = '';
+            } else {
+                showToast(`工号 ${employeeId} 不存在。`, false);
+            }
+        }
+
+        async function removeAdmin(adminId, employeeId) {
+            if (!isSystemAdmin) {
+                showToast("您没有权限进行此操作！", false);
+                return;
+            }
+
+            if (employeeId === SYSTEM_ADMIN_EMPLOYEE_ID) {
+                showToast("系统管理员无法被移除。", false);
+                return;
+            }
+
+            if (confirm(`确定要移除工号为 ${employeeId} 的管理员身份吗？`)) {
+                showLoading();
+                await adminsRef.child(adminId).remove();
+                await usersRef.child(adminId).update({ isAdmin: false });
+                hideLoading();
+                showToast(`${employeeId} 已被移除管理员身份。`);
+            }
+        }
+
+        // --- User Management Logic (System Admin) ---
+        async function loadAllUsers() {
+            if (!isSystemAdmin) {
+                showToast("您没有权限访问用户管理！", false);
+                return;
+            }
+
+            showLoading();
+            const userTableBody = document.getElementById('userTableBody');
+            userTableBody.innerHTML = ''; // Clear existing list
+
+            const snapshot = await usersRef.once('value');
+            hideLoading();
+
+            if (snapshot.exists()) {
+                const users = snapshot.val();
+                for (const userId in users) {
+                    const user = users[userId];
+                    if (user.employeeId === SYSTEM_ADMIN_EMPLOYEE_ID) continue; // Don't list system admin here
+
+                    const row = userTableBody.insertRow();
+                    row.classList.add('hover:bg-gray-50');
+
+                    // Avatar
+                    const avatarCell = row.insertCell();
+                    avatarCell.classList.add('py-3', 'px-6');
+                    const avatarImg = document.createElement('img');
+                    avatarImg.src = user.avatar || "https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User";
+                    avatarImg.classList.add('w-10', 'h-10', 'rounded-full', 'object-cover');
+                    avatarCell.appendChild(avatarImg);
+
+                    // Name
+                    const nameCell = row.insertCell();
+                    nameCell.classList.add('py-3', 'px-6', 'font-medium', 'text-gray-900');
+                    nameCell.textContent = user.name;
+
+                    // Employee ID
+                    const employeeIdCell = row.insertCell();
+                    employeeIdCell.classList.add('py-3', 'px-6', 'text-gray-700');
+                    employeeIdCell.textContent = user.employeeId;
+
+                    // Points (New: Display points in user management)
+                    const pointsCell = row.insertCell();
+                    pointsCell.classList.add('py-3', 'px-6', 'text-gray-700');
+                    pointsCell.textContent = user.points || 0;
+
+                    // Admin Status
+                    const adminStatusCell = row.insertCell();
+                    adminStatusCell.classList.add('py-3', 'px-6');
+                    const adminStatusSpan = document.createElement('span');
+                    adminStatusSpan.classList.add('px-2', 'inline-flex', 'text-xs', 'leading-5', 'font-semibold', 'rounded-full');
+                    adminStatusSpan.textContent = user.isAdmin ? '是' : '否';
+                    adminStatusSpan.classList.add(user.isAdmin ? 'bg-green-100', 'text-green-800' : 'bg-red-100', 'text-red-800');
+                    adminStatusCell.appendChild(adminStatusSpan);
+
+                    // Actions
+                    const actionsCell = row.insertCell();
+                    actionsCell.classList.add('py-3', 'px-6', 'whitespace-nowrap', 'text-sm', 'font-medium');
+
+                    const toggleAdminBtn = document.createElement('button');
+                    toggleAdminBtn.classList.add('text-indigo-600', 'hover:text-indigo-900', 'mr-3');
+                    toggleAdminBtn.textContent = user.isAdmin ? '取消管理员' : '设为管理员';
+                    toggleAdminBtn.addEventListener('click', () => addAdminFromUserManagement(userId, user.employeeId, !user.isAdmin));
+                    actionsCell.appendChild(toggleAdminBtn);
+
+                    const deleteUserBtn = document.createElement('button');
+                    deleteUserBtn.classList.add('text-red-600', 'hover:text-red-900');
+                    deleteUserBtn.textContent = '删除用户';
+                    deleteUserBtn.addEventListener('click', () => deleteUser(userId, user.employeeId));
+                    actionsCell.appendChild(deleteUserBtn);
+                }
+            } else {
+                userTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">暂无注册用户</td></tr>';
+            }
+        }
+
+        async function addAdminFromUserManagement(userId, employeeId, makeAdmin) {
+            if (!isSystemAdmin) {
+                showToast("您没有权限进行此操作！", false);
+                return;
+            }
+            if (employeeId === SYSTEM_ADMIN_EMPLOYEE_ID) {
+                showToast("系统管理员无法被添加/移除。", false);
+                return;
+            }
+
+            if (confirm(`确定要将工号为 ${employeeId} 的用户${makeAdmin ? '设为' : '取消'}管理员身份吗？`)) {
+                showLoading();
+                if (makeAdmin) {
+                    await adminsRef.child(userId).set(true);
+                    await usersRef.child(userId).update({ isAdmin: true });
+                    showToast(`${employeeId} 已被设为管理员。`);
+                } else {
+                    await adminsRef.child(userId).remove();
+                    await usersRef.child(userId).update({ isAdmin: false });
+                    showToast(`${employeeId} 已被取消管理员身份。`);
+                }
+                hideLoading();
+                loadAllUsers(); // Reload user list
+            }
+        }
+
+        async function deleteUser(userId, employeeId) {
+            if (!isSystemAdmin) {
+                showToast("您没有权限进行此操作！", false);
+                return;
+            }
+            if (employeeId === SYSTEM_ADMIN_EMPLOYEE_ID) {
+                showToast("系统管理员无法被删除。", false);
+                return;
+            }
+
+            if (confirm(`确定要永久删除工号为 ${employeeId} 的用户及其所有帖子和评论吗？此操作不可逆！`)) {
+                showLoading();
+                try {
+                    // Remove from admins if they are admin
+                    await adminsRef.child(userId).remove();
+
+                    // Delete user's posts
+                    const userPostsSnapshot = await postsRef.orderByChild('authorId').equalTo(userId).once('value');
+                    const postDeletionPromises = [];
+                    userPostsSnapshot.forEach(postSnap => {
+                        postDeletionPromises.push(postsRef.child(postSnap.key).remove());
+                    });
+                    await Promise.all(postDeletionPromises);
+
+                    // Delete user record
+                    await usersRef.child(userId).remove();
+
+                    showToast(`用户 ${employeeId} 及其所有数据已成功删除。`);
+                } catch (error) {
+                    console.error("Error deleting user:", error);
+                    showToast("删除用户失败！", false);
+                } finally {
+                    hideLoading();
+                    loadAllUsers(); // Reload user list
+                }
+            }
+        }
+
+        // --- UI Visibility Management ---
+        function hideAllContainers() {
+            loginContainer.classList.add('hidden');
+            registerContainer.classList.add('hidden');
+            userInfoContainer.classList.add('hidden');
+            adminPanelContainer.classList.add('hidden');
+            userManagementContainer.classList.add('hidden');
+            mainContainer.classList.add('hidden');
+        }
+
+        function showMainUI() {
+            hideAllContainers();
+            mainContainer.classList.remove('hidden');
+            showTechSection(); // Default to tech section
+            updateNavUI();
+        }
+
+        function showTechSection() {
+            techSection.classList.remove('hidden');
+            dailySection.classList.add('hidden');
+            userSection.classList.add('hidden');
+            showTechSectionBtn.classList.add('bg-purple-600');
+            showTechSectionBtn.classList.remove('bg-purple-500');
+            showDailySectionBtn.classList.remove('bg-green-600');
+            showDailySectionBtn.classList.add('bg-green-500');
+            showUserSectionBtn.classList.remove('bg-blue-600');
+            showUserSectionBtn.classList.add('bg-blue-500');
+        }
+
+        function showDailySection() {
+            dailySection.classList.remove('hidden');
+            techSection.classList.add('hidden');
+            userSection.classList.add('hidden');
+            showDailySectionBtn.classList.add('bg-green-600');
+            showDailySectionBtn.classList.remove('bg-green-500');
+            showTechSectionBtn.classList.remove('bg-purple-600');
+            showTechSectionBtn.classList.add('bg-purple-500');
+            showUserSectionBtn.classList.remove('bg-blue-600');
+            showUserSectionBtn.classList.add('bg-blue-500');
+        }
+
+        function showUserSection() {
+            if (!currentUser) return;
+            techSection.classList.add('hidden');
+            dailySection.classList.add('hidden');
+            userSection.classList.remove('hidden');
+            showUserSectionBtn.classList.add('bg-blue-600');
+            showUserSectionBtn.classList.remove('bg-blue-500');
+            showTechSectionBtn.classList.remove('bg-purple-600');
+            showTechSectionBtn.classList.add('bg-purple-500');
+            showDailySectionBtn.classList.remove('bg-green-600');
+            showDailySectionBtn.classList.add('bg-green-500');
+
+            // Update user profile info
+            userProfileAvatar.src = currentUser.avatar || "https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User";
+            userProfileName.textContent = currentUser.name;
+            userProfileEmployeeId.textContent = `工号: ${currentUser.employeeId}`;
+            userProfilePoints.textContent = `积分: ${currentUser.points || 0}`; // New: Display points on profile
+            if (isAdmin) {
+                userProfileAdminStatus.classList.remove('hidden');
+            } else {
+                userProfileAdminStatus.classList.add('hidden');
+            }
+
+            // Load user's own posts
+            loadUserPosts(currentUser.id);
+        }
+
+        // --- Post & Reply Management ---
+        const postsCache = {
+            tech: {},
+            daily: {},
+            user: {}
+        };
+
+        function setupRealTimeListeners() {
+            // Listen for changes in tech posts
+            postsRef.orderByChild('type').equalTo('tech').on('value', (snapshot) => {
+                const postsContainer = document.getElementById('techPosts');
+                renderPosts(snapshot, postsContainer, 'tech');
+            });
+
+            // Listen for changes in daily posts
+            postsRef.orderByChild('type').equalTo('daily').on('value', (snapshot) => {
+                const postsContainer = document.getElementById('dailyPosts');
+                renderPosts(snapshot, postsContainer, 'daily');
+            });
+
+            // Listen for changes in all posts for user section
+            postsRef.on('value', (snapshot) => {
+                if (currentUser && userSection.classList.contains('hidden') === false) {
+                    loadUserPosts(currentUser.id);
+                }
+                updateAllReplies(snapshot); // Update replies for all posts
+            });
+        }
+
+        function renderPosts(snapshot, container, sectionType) {
+            if (!container) return; // Ensure container exists
+            container.innerHTML = ''; // Clear existing posts
+
+            const postsData = snapshot.val();
+            const posts = [];
+            for (let id in postsData) {
+                const post = { id, ...postsData[id] };
+                // Ensure points and lastCheckInDate exist in author data
+                if (post.author && post.author.points === undefined) post.author.points = 0;
+                if (post.author && post.author.lastCheckInDate === undefined) post.author.lastCheckInDate = null;
+                posts.push(post);
+            }
+
+            // Sort posts: pinned first, then by timestamp descending
+            posts.sort((a, b) => {
+                if (a.isPinned && !b.isPinned) return -1;
+                if (!a.isPinned && b.isPinned) return 1;
+                return b.timestamp - a.timestamp;
+            });
+
+            const currentSectionPostsCache = {};
+            posts.forEach(post => {
+                currentSectionPostsCache[post.id] = post;
+                const postElement = createPostElement(post, sectionType);
+                container.appendChild(postElement);
+            });
+            postsCache[sectionType] = currentSectionPostsCache;
+        }
+
+        function createPostElement(post, sectionType) {
+            const template = document.getElementById('postTemplate');
+            const postCard = template.content.cloneNode(true);
+
+            postCard.querySelector('.post-card').setAttribute('data-post-id', post.id);
+            postCard.querySelector('.post-avatar').src = post.author.avatar || "https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User";
+            postCard.querySelector('.post-user-name').textContent = post.author.name;
+            postCard.querySelector('.post-timestamp').textContent = getFormattedTimestamp(post.timestamp);
+            postCard.querySelector('.post-content').textContent = post.content;
+            postCard.querySelector('.like-count').textContent = post.likes ? Object.keys(post.likes).length : 0;
+
+            const postImage = postCard.querySelector('.post-image');
+            if (post.imageUrl) {
+                postImage.src = post.imageUrl;
+                postImage.classList.remove('hidden');
+            } else {
+                postImage.classList.add('hidden');
+            }
+
+            const adminBadge = postCard.querySelector('.post-admin-badge');
+            if (post.author.isAdmin) {
+                adminBadge.classList.remove('hidden');
+            } else {
+                adminBadge.classList.add('hidden');
+            }
+
+            attachPostEvents(postCard, post, sectionType);
+            loadRepliesForPost(post.id, postCard.querySelector('.replies-list'));
+
+            return postCard;
+        }
+
+        function attachPostEvents(postCard, post, sectionType) {
+            const postId = post.id;
+            const likeBtn = postCard.querySelector('.like-btn');
+            const deleteBtn = postCard.querySelector('.delete-post-btn');
+            const toggleTopBtn = postCard.querySelector('.toggle-top-btn');
+            const commentToggleBtn = postCard.querySelector('.comment-toggle-btn');
+            const commentsSection = postCard.querySelector('.comments-section');
+            const submitCommentBtn = postCard.querySelector('.submit-comment-btn');
+            const commentInput = postCard.querySelector('.comment-input');
+
+            // Like button
+            if (currentUser) {
+                if (post.likes && post.likes[currentUser.id]) {
+                    likeBtn.classList.add('text-red-500'); // Indicate liked state
+                }
+                likeBtn.addEventListener('click', async () => {
+                    if (!currentUser) {
+                        showToast("请先登录！", false);
+                        return;
+                    }
+                    const likeRef = postsRef.child(`${postId}/likes/${currentUser.id}`);
+                    const snapshot = await likeRef.once('value');
+                    if (snapshot.exists()) {
+                        await likeRef.remove(); // Unlike
+                        showToast("取消点赞");
+                    } else {
+                        await likeRef.set(true); // Like
+                        showToast("点赞成功！");
+                    }
+                });
+            } else {
+                likeBtn.addEventListener('click', () => showToast("请先登录！", false));
+            }
+
+
+            // Delete button
+            if (currentUser && (post.authorId === currentUser.id || isAdmin)) {
+                deleteBtn.classList.remove('hidden');
+                deleteBtn.addEventListener('click', async () => {
+                    if (confirm("确定要删除这篇帖子吗？")) {
+                        showLoading();
+                        await postsRef.child(postId).remove();
+                        hideLoading();
+                        showToast("帖子删除成功！");
+                    }
+                });
+            }
+
+            // Toggle top button (only for admins)
+            if (isAdmin) {
+                toggleTopBtn.classList.remove('hidden');
+                toggleTopBtn.textContent = post.isPinned ? '取消置顶' : '置顶';
+                toggleTopBtn.addEventListener('click', async () => {
+                    if (confirm(`确定要${post.isPinned ? '取消' : ''}置顶这篇帖子吗？`)) {
+                        showLoading();
+                        await postsRef.child(postId).update({ isPinned: !post.isPinned });
+                        hideLoading();
+                        showToast(post.isPinned ? "已取消置顶。" : "已置顶！");
+                    }
+                });
+            }
+
+            // Comment toggle
+            commentToggleBtn.addEventListener('click', () => {
+                commentsSection.classList.toggle('hidden');
+            });
+
+            // Submit comment
+            submitCommentBtn.addEventListener('click', async () => {
+                if (!currentUser) {
+                    showToast("请先登录才能评论！", false);
+                    return;
+                }
+                const content = commentInput.value.trim();
+                if (content) {
+                    showLoading();
+                    const replyId = generateId();
+                    await postsRef.child(`${postId}/replies/${replyId}`).set({
+                        authorId: currentUser.id,
+                        authorName: currentUser.name,
+                        authorAvatar: currentUser.avatar,
+                        authorEmployeeId: currentUser.employeeId,
+                        content: content,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP,
+                        isAdmin: isAdmin // Store current admin status
+                    });
+                    hideLoading();
+                    showToast("评论成功！");
+                    commentInput.value = '';
+                } else {
+                    showToast("评论内容不能为空！", false);
+                }
+            });
+        }
+
+        function updateAllReplies(snapshot) {
+            const postsData = snapshot.val();
+            const allReplyLists = document.querySelectorAll('.replies-list');
+            allReplyLists.forEach(list => {
+                const postId = list.closest('.post-card').getAttribute('data-post-id');
+                const post = postsData[postId];
+                if (post && post.replies) {
+                    list.innerHTML = ''; // Clear existing replies
+                    const repliesArray = Object.keys(post.replies).map(replyId => ({ id: replyId, ...post.replies[replyId] }));
+                    repliesArray.sort((a, b) => a.timestamp - b.timestamp); // Sort by oldest first
+                    repliesArray.forEach(reply => {
+                        const replyElement = createReplyElement(reply, postId);
+                        list.appendChild(replyElement);
+                    });
+                } else {
+                    list.innerHTML = '<p class="text-gray-500 text-sm italic">暂无评论</p>';
+                }
+            });
+        }
+
+        function loadRepliesForPost(postId, repliesListContainer) {
+            postsRef.child(`${postId}/replies`).on('value', (snapshot) => {
+                repliesListContainer.innerHTML = ''; // Clear existing replies
+                if (snapshot.exists()) {
+                    const repliesData = snapshot.val();
+                    const replies = Object.keys(repliesData).map(id => ({ id, ...repliesData[id] }));
+                    replies.sort((a, b) => a.timestamp - b.timestamp); // Sort by oldest first
+
+                    replies.forEach(reply => {
+                        const replyElement = createReplyElement(reply, postId);
+                        repliesListContainer.appendChild(replyElement);
+                    });
+                } else {
+                    repliesListContainer.innerHTML = '<p class="text-gray-500 text-sm italic">暂无评论</p>';
+                }
+            });
+        }
+
+        function createReplyElement(reply, postId) {
+            const template = document.getElementById('replyTemplate');
+            const replyCard = template.content.cloneNode(true);
+
+            replyCard.querySelector('.reply-card').setAttribute('data-reply-id', reply.id);
+            replyCard.querySelector('.reply-avatar').src = reply.authorAvatar || "https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User";
+            replyCard.querySelector('.reply-user-name').textContent = reply.authorName;
+            replyCard.querySelector('.reply-timestamp').textContent = getFormattedTimestamp(reply.timestamp);
+            replyCard.querySelector('.reply-content').textContent = reply.content;
+
+            const adminBadge = replyCard.querySelector('.reply-admin-badge');
+            if (reply.isAdmin) { // Use stored isAdmin status for reply
+                adminBadge.classList.remove('hidden');
+            } else {
+                adminBadge.classList.add('hidden');
+            }
+
+            attachReplyEvents(replyCard, reply, postId);
+
+            return replyCard;
+        }
+
+        function attachReplyEvents(replyCard, reply, postId) {
+            const deleteReplyBtn = replyCard.querySelector('.delete-reply-btn');
+            // Only author or admin can delete a reply
+            if (currentUser && (reply.authorId === currentUser.id || isAdmin)) {
+                deleteReplyBtn.classList.remove('hidden');
+                deleteReplyBtn.addEventListener('click', async () => {
+                    if (confirm("确定要删除这条评论吗？")) {
+                        showLoading();
+                        await postsRef.child(`${postId}/replies/${reply.id}`).remove();
+                        hideLoading();
+                        showToast("评论删除成功！");
+                    }
+                });
+            }
+        }
+
+        async function createPost(sectionType) {
+            if (!currentUser) {
+                showToast("请先登录才能发布帖子！", false);
+                return;
+            }
+
+            showLoading();
+            const contentInput = sectionType === 'tech' ? document.getElementById('techPostContent') : document.getElementById('dailyPostContent');
+            const imageInput = sectionType === 'tech' ? document.getElementById('techPostImage') : document.getElementById('dailyPostImage');
+            const content = contentInput.value.trim();
+            const imageFile = imageInput.files[0];
+
+            if (!content && !imageFile) {
+                hideLoading();
+                showToast("帖子内容或图片至少需要一项！", false);
+                return;
+            }
+
+            let imageUrl = null;
+            if (imageFile) {
+                try {
+                    const compressedBlob = await compressImage(imageFile);
+                    imageUrl = await uploadImageToImgBB(compressedBlob);
+                } catch (error) {
+                    console.error("Error uploading image:", error);
+                    showToast("图片上传失败，将继续发布无图帖子。", false);
+                }
+            }
+
+            const postId = generateId();
+            await postsRef.child(postId).set({
+                authorId: currentUser.id,
+                authorName: currentUser.name,
+                authorAvatar: currentUser.avatar,
+                authorEmployeeId: currentUser.employeeId,
+                content: content,
+                imageUrl: imageUrl,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                type: sectionType,
+                likes: {},
+                replies: {},
+                isPinned: false,
+                isAdmin: isAdmin // Store current admin status
+            });
+
+            hideLoading();
+            showToast("帖子发布成功！");
+            contentInput.value = '';
+            imageInput.value = ''; // Clear file input
+        }
+
+        function loadUserPosts(userId) {
+            const userPostsContainer = document.getElementById('userPosts');
+            userPostsContainer.innerHTML = ''; // Clear existing posts
+
+            postsRef.orderByChild('authorId').equalTo(userId).once('value', (snapshot) => {
+                const postsData = snapshot.val();
+                const posts = [];
+                for (let id in postsData) {
+                    const post = { id, ...postsData[id] };
+                     // Ensure points and lastCheckInDate exist in author data
+                    if (post.author && post.author.points === undefined) post.author.points = 0;
+                    if (post.author && post.author.lastCheckInDate === undefined) post.author.lastCheckInDate = null;
+                    posts.push(post);
+                }
+
+                if (posts.length === 0) {
+                    userPostsContainer.innerHTML = '<p class="text-gray-500 text-lg text-center mt-8">您还没有发布任何帖子。</p>';
+                    return;
+                }
+
+                // Sort posts: pinned first, then by timestamp descending
+                posts.sort((a, b) => {
+                    if (a.isPinned && !b.isPinned) return -1;
+                    if (!a.isPinned && b.isPinned) return 1;
+                    return b.timestamp - a.timestamp;
+                });
+
+                posts.forEach(post => {
+                    const postElement = createPostElement(post, 'user'); // Use 'user' section type for user's own posts
+                    userPostsContainer.appendChild(postElement);
+                });
+            });
+        }
+
+        async function updatePostsWithNewAvatar(userId, newAvatar) {
+            // Update posts where this user is the author
+            const userPostsSnapshot = await postsRef.orderByChild('authorId').equalTo(userId).once('value');
+            const postUpdates = {};
+            userPostsSnapshot.forEach(postSnap => {
+                postUpdates[`${postSnap.key}/authorAvatar`] = newAvatar;
+            });
+            await postsRef.update(postUpdates);
+
+            // Update replies where this user is the author
+            const allPostsSnapshot = await postsRef.once('value');
+            const replyUpdates = {};
+            allPostsSnapshot.forEach(postSnap => {
+                if (postSnap.val().replies) {
+                    for (const replyId in postSnap.val().replies) {
+                        if (postSnap.val().replies[replyId].authorId === userId) {
+                            replyUpdates[`${postSnap.key}/replies/${replyId}/authorAvatar`] = newAvatar;
+                        }
+                    }
+                }
+            });
+            await postsRef.update(replyUpdates);
+        }
+
+        async function updateRepliesWithNewAvatar(userId, newAvatar) {
+            const allPostsSnapshot = await postsRef.once('value');
+            const replyUpdates = {};
+            allPostsSnapshot.forEach(postSnap => {
+                if (postSnap.val().replies) {
+                    for (const replyId in postSnap.val().replies) {
+                        if (postSnap.val().replies[replyId].authorId === userId) {
+                            replyUpdates[`${postSnap.key}/replies/${replyId}/authorAvatar`] = newAvatar;
+                        }
+                    }
+                }
+            });
+            await postsRef.update(replyUpdates);
+        }
+
+        async function updatePostsWithNewName(userId, newName) {
+            // Update posts where this user is the author
+            const userPostsSnapshot = await postsRef.orderByChild('authorId').equalTo(userId).once('value');
+            const postUpdates = {};
+            userPostsSnapshot.forEach(postSnap => {
+                postUpdates[`${postSnap.key}/authorName`] = newName;
+            });
+            await postsRef.update(postUpdates);
+
+            // Update replies where this user is the author
+            const allPostsSnapshot = await postsRef.once('value');
+            const replyUpdates = {};
+            allPostsSnapshot.forEach(postSnap => {
+                if (postSnap.val().replies) {
+                    for (const replyId in postSnap.val().replies) {
+                        if (postSnap.val().replies[replyId].authorId === userId) {
+                            replyUpdates[`${postSnap.key}/replies/${replyId}/authorName`] = newName;
+                        }
+                    }
+                }
+            });
+            await postsRef.update(replyUpdates);
+        }
+
+        async function updateRepliesWithNewName(userId, newName) {
+            const allPostsSnapshot = await postsRef.once('value');
+            const replyUpdates = {};
+            allPostsSnapshot.forEach(postSnap => {
+                if (postSnap.val().replies) {
+                    for (const replyId in postSnap.val().replies) {
+                        if (postSnap.val().replies[replyId].authorId === userId) {
+                            replyUpdates[`${postSnap.key}/replies/${replyId}/authorName`] = newName;
+                        }
+                    }
+                }
+            });
+            await postsRef.update(replyUpdates);
+        }
+
+        async function updatePostsAdminStatus(userId, newIsAdminStatus) {
+            const userPostsSnapshot = await postsRef.orderByChild('authorId').equalTo(userId).once('value');
+            const updates = {};
+            userPostsSnapshot.forEach(postSnap => {
+                updates[`${postSnap.key}/isAdmin`] = newIsAdminStatus;
+                if (postSnap.val().replies) {
+                    for (const replyId in postSnap.val().replies) {
+                        if (postSnap.val().replies[replyId].authorId === userId) {
+                            updates[`${postSnap.key}/replies/${replyId}/isAdmin`] = newIsAdminStatus;
+                        }
+                    }
+                }
+            });
+            if (Object.keys(updates).length > 0) {
+                await postsRef.update(updates);
+            }
+        }
+
+        async function updateUserContentAdminStatus(userId, newIsAdminStatus) {
+            await postsRef.once('value', (snapshot) => {
+                const updates = {};
+                snapshot.forEach(postSnap => {
+                    // Check if the post's author is the user whose admin status changed
+                    if (postSnap.val().authorId === userId) {
+                        updates[`${postSnap.key}/isAdmin`] = newIsAdminStatus;
+                    }
+                    // Check if any reply's author is the user whose admin status changed
+                    if (postSnap.val().replies) {
+                        for (const replyId in postSnap.val().replies) {
+                            if (postSnap.val().replies[replyId].authorId === userId) {
+                                updates[`${postSnap.key}/replies/${replyId}/isAdmin`] = newIsAdminStatus;
+                            }
+                        }
+                    }
+                });
+                if (Object.keys(updates).length > 0) {
+                    postsRef.update(updates);
+                }
+            });
+        }
+
+        async function updateUserContentAdminStatusByEmployeeId(employeeId, newIsAdminStatus) {
+            const userSnapshot = await usersRef.orderByChild('employeeId').equalTo(employeeId).once('value');
+            if (userSnapshot.exists()) {
+                const userId = Object.keys(userSnapshot.val())[0];
+                await updateUserContentAdminStatus(userId, newIsAdminStatus);
+            }
+        }
+
+        // --- NEW: Check-in and Points Feature ---
+        async function checkIn() {
+            if (!currentUser) {
+                showToast("请先登录才能签到！", false);
+                return;
+            }
+
+            showLoading();
+            const today = new Date().toDateString(); // e.g., "Wed Oct 29 2025"
+
+            if (currentUser.lastCheckInDate === today) {
+                hideLoading();
+                showToast("您今天已经签到过了，请明天再来！", false);
+                return;
+            }
+
+            // Update user's points and lastCheckInDate
+            const newPoints = (currentUser.points || 0) + 5;
+            await usersRef.child(currentUser.id).update({
+                points: newPoints,
+                lastCheckInDate: today
+            });
+
+            // Update current user in session
+            currentUser.points = newPoints;
+            currentUser.lastCheckInDate = today;
+            saveSession(currentUser);
+
+            hideLoading();
+            showToast(`签到成功！您获得了5积分，当前积分: ${newPoints}`);
+            updateCheckInButtonState(); // Update button state after successful check-in
+        }
+
+        function updateCheckInButtonState() {
+            if (currentUser) {
+                const today = new Date().toDateString();
+                if (currentUser.lastCheckInDate === today) {
+                    checkInButton.textContent = "已签到";
+                    checkInButton.disabled = true;
+                    checkInButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                    checkInButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+                } else {
+                    checkInButton.textContent = "签到";
+                    checkInButton.disabled = false;
+                    checkInButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                    checkInButton.classList.add('bg-green-500', 'hover:bg-green-600');
+                }
+            } else {
+                checkInButton.classList.add('hidden'); // Hide if not logged in
+            }
+        }
+
+        // --- Initial Data Population (Optional, for development) ---
+        async function addInitialPostsIfNeeded() {
+            const snapshot = await postsRef.once('value');
+            if (!snapshot.exists()) {
+                const postId1 = generateId();
+                await postsRef.child(postId1).set({
+                    authorId: SYSTEM_ADMIN_EMPLOYEE_ID,
+                    authorName: "系统管理员",
+                    authorAvatar: "https://via.placeholder.com/150/FF0000/FFFFFF?text=SA",
+                    authorEmployeeId: SYSTEM_ADMIN_EMPLOYEE_ID,
+                    content: "欢迎来到技术交流区！有什么技术难题可以提问哦。",
+                    imageUrl: null,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP - 10000,
+                    type: "tech",
+                    likes: { "dummyUser1": true },
+                    replies: {
+                        "reply1": {
+                            authorId: SYSTEM_ADMIN_EMPLOYEE_ID,
+                            authorName: "系统管理员",
+                            authorAvatar: "https://via.placeholder.com/150/FF0000/FFFFFF?text=SA",
+                            authorEmployeeId: SYSTEM_ADMIN_EMPLOYEE_ID,
+                            content: "这是一个测试回复。",
+                            timestamp: firebase.database.ServerValue.TIMESTAMP - 5000,
+                            isAdmin: true
+                        }
+                    },
+                    isPinned: true,
+                    isAdmin: true
+                });
+
+                const postId2 = generateId();
+                await postsRef.child(postId2).set({
+                    authorId: SYSTEM_ADMIN_EMPLOYEE_ID,
+                    authorName: "系统管理员",
+                    authorAvatar: "https://via.placeholder.com/150/FF0000/FFFFFF?text=SA",
+                    authorEmployeeId: SYSTEM_ADMIN_EMPLOYEE_ID,
+                    content: "日常板块可以聊聊生活趣事，放松一下！",
+                    imageUrl: null,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP - 20000,
+                    type: "daily",
+                    likes: {},
+                    replies: {},
+                    isPinned: true,
+                    isAdmin: true
+                });
+                console.log("Initial posts added.");
+            }
+        }
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeAdminList();
+            checkLoginStatus();
+            setupRealTimeListeners();
+            addInitialPostsIfNeeded(); // Call this for initial data
+
+            loginBtn.addEventListener('click', login);
+            registerBtn.addEventListener('click', register);
+            logoutButton.addEventListener('click', logout);
+            editProfileButton.addEventListener('click', () => {
+                hideAllContainers();
+                userInfoContainer.classList.remove('hidden');
+                document.getElementById('currentAvatar').src = currentUser.avatar || "https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User";
+                document.getElementById('editName').value = currentUser.name;
+            });
+            adminPanelButton.addEventListener('click', () => {
+                hideAllContainers();
+                adminPanelContainer.classList.remove('hidden');
+                if (isSystemAdmin) {
+                    document.getElementById('addAdminSection').classList.remove('hidden');
+                } else {
+                    document.getElementById('addAdminSection').classList.add('hidden');
+                }
+            });
+            userManagementButton.addEventListener('click', () => {
+                hideAllContainers();
+                userManagementContainer.classList.remove('hidden');
+                loadAllUsers();
+            });
+
+            showRegisterFormBtn.addEventListener('click', () => {
+                hideAllContainers();
+                registerContainer.classList.remove('hidden');
+            });
+            showLoginFormBtn.addEventListener('click', () => {
+                hideAllContainers();
+                loginContainer.classList.remove('hidden');
+            });
+            cancelEditBtn.addEventListener('click', () => {
+                hideAllContainers();
+                showMainUI();
+            });
+            updateInfoBtn.addEventListener('click', updateUserInfo);
+
+            document.getElementById('addAdminBtn').addEventListener('click', addNewAdmin);
+
+            submitTechPostBtn.addEventListener('click', () => createPost('tech'));
+            submitDailyPostBtn.addEventListener('click', () => createPost('daily'));
+
+            showTechSectionBtn.addEventListener('click', showTechSection);
+            showDailySectionBtn.addEventListener('click', showDailySection);
+            showUserSectionBtn.addEventListener('click', showUserSection);
+
+            // New: Check-in button event listener
+            checkInButton.addEventListener('click', checkIn);
+        });
+
+        // Initialize system admin if not exists (only on first load)
+        usersRef.orderByChild('employeeId').equalTo(SYSTEM_ADMIN_EMPLOYEE_ID).once('value', async (snapshot) => {
+            if (!snapshot.exists()) {
+                const systemAdminRef = usersRef.push();
+                const systemAdminId = systemAdminRef.key;
+                await systemAdminRef.set({
+                    name: "系统管理员",
+                    employeeId: SYSTEM_ADMIN_EMPLOYEE_ID,
+                    password: hashPassword("admin123"),
+                    avatar: "https://via.placeholder.com/150/FF0000/FFFFFF?text=SA",
+                    isAdmin: true,
+                    isSystemAdmin: true,
+                    points: 0, // System admin also has points
+                    lastCheckInDate: null
+                });
+                await adminsRef.child(systemAdminId).set(true); // Add system admin to admin list
+                console.log("System Admin initialized.");
+            }
+        });
+    </script>
 </body>
 </html>
+```
+```javascript
+// NEW: Check-in and Points Feature
+async function checkIn() {
+    if (!currentUser) {
+        showToast("请先登录才能签到！", false);
+        return;
+    }
+
+    showLoading();
+    const today = new Date().toDateString(); // e.g., "Wed Oct 29 2025"
+
+    if (currentUser.lastCheckInDate === today) {
+        hideLoading();
+        showToast("您今天已经签到过了，请明天再来！", false);
+        return;
+    }
+
+    // Update user's points and lastCheckInDate
+    const newPoints = (currentUser.points || 0) + 5;
+    await usersRef.child(currentUser.id).update({
+        points: newPoints,
+        lastCheckInDate: today
+    });
+
+    // Update current user in session
+    currentUser.points = newPoints;
+    currentUser.lastCheckInDate = today;
+    saveSession(currentUser); // Re-save session to reflect updated points
+
+    hideLoading();
+    showToast(`签到成功！您获得了5积分，当前积分: ${newPoints}`);
+    updateCheckInButtonState(); // Update button state after successful check-in
+}
+
+function updateCheckInButtonState() {
+    if (currentUser) {
+        const today = new Date().toDateString();
+        if (currentUser.lastCheckInDate === today) {
+            checkInButton.textContent = "已签到";
+            checkInButton.disabled = true;
+            checkInButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+            checkInButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+        } else {
+            checkInButton.textContent = "签到";
+            checkInButton.disabled = false;
+            checkInButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            checkInButton.classList.add('bg-green-500', 'hover:bg-green-600');
+        }
+    } else {
+        checkInButton.classList.add('hidden'); // Hide if not logged in
+    }
+}
+
+// Ensure points are initialized for new users and system admin
+// In register() function:
+// await newUserRef.set({
+//     name,
+//     employeeId,
+//     password: hashPassword(password),
+//     avatar: avatarUrl,
+//     isAdmin: false,
+//     isSystemAdmin: false,
+//     points: 0, // New: Initialize points for new users
+//     lastCheckInDate: null // New: Initialize lastCheckInDate
+// });
+
+// In System Admin initialization:
+// await systemAdminRef.set({
+//     name: "系统管理员",
+//     employeeId: SYSTEM_ADMIN_EMPLOYEE_ID,
+//     password: hashPassword("admin123"),
+//     avatar: "https://via.placeholder.com/150/FF0000/FFFFFF?text=SA",
+//     isAdmin: true,
+//     isSystemAdmin: true,
+//     points: 0, // System admin also has points
+//     lastCheckInDate: null
+// });
+
+// Update where points are displayed in UI:
+// Navigation bar: <span id="userPointsDisplay" class="text-white text-lg font-semibold mr-4 hidden">积分: 0</span>
+// User Profile Section: <p id="userProfilePoints" class="text-indigo-600 font-semibold mt-1">积分: 0</p>
+// User Management Table: Add a new column for points.
+
+// Add event listener for check-in button in DOMContentLoaded
+// checkInButton.addEventListener('click', checkIn);
+```
