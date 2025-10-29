@@ -3,8 +3,8 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>装备部件团支部青年π空间</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
@@ -12,7 +12,7 @@
 </head>
 <body class="bg-gray-100">
   <div class="min-h-screen flex flex-col">
-    <nav class="bg-blue-600 text-white shadow-lg">
+    <nav class="bg-blue-700 text-white shadow-lg">
       <div class="container mx-auto px-4 py-3 flex justify-between items-center">
         <h1 class="text-2xl font-bold">装备部件团支部青年π空间</h1>
         <div id="userNav" class="hidden">
@@ -21,79 +21,96 @@
             <span id="navUserName">加载中...</span>
             <button id="editProfileBtn" class="px-3 py-1 bg-blue-500 rounded hover:bg-blue-600">编辑信息</button>
             <button id="userManagementBtn" class="hidden px-3 py-1 bg-purple-500 rounded hover:bg-purple-600">用户管理</button>
-            <button id="adminPanelBtn" class="hidden px-3 py-1 bg-red-500 rounded hover:bg-red-600">管理设置</button>
+            <button id="adminPanelBtn" class="hidden px-3 py-1 bg-red-500 rounded hover:bg-red-600">管理面板</button>
             <button id="logoutBtn" class="px-3 py-1 bg-gray-500 rounded hover:bg-gray-600">退出</button>
           </div>
         </div>
       </div>
     </nav>
 
-    <div class="container mx-auto px-4 py-6 flex-grow">
+    <main class="container mx-auto px-4 py-6 flex-grow">
+      <!-- 登录 -->
       <div id="loginContainer" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto my-10">
         <h2 class="text-xl font-semibold mb-4 text-center">登录青年π空间</h2>
         <div class="space-y-4">
           <input id="loginEmployeeId" class="w-full border p-2 rounded" placeholder="工号" />
-          <input id="loginPassword" class="w-full border p-2 rounded" type="password" placeholder="密码" />
+          <input id="loginPassword" type="password" class="w-full border p-2 rounded" placeholder="密码" />
           <div class="text-center">
-            <button id="loginBtn" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">登录</button>
+            <button id="loginBtn" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">登录</button>
           </div>
         </div>
       </div>
 
+      <!-- 主体内容 -->
       <div id="mainContainer" class="hidden">
-        <div class="bg-white p-4 mb-4 rounded shadow flex space-x-2">
-          <button data-section="tech" class="section-btn bg-blue-500 text-white px-4 py-2 rounded">技术板块</button>
+        <!-- 导航区块 -->
+        <div class="bg-white p-3 mb-4 rounded shadow flex space-x-2">
+          <button data-section="tech" class="section-btn bg-blue-600 text-white px-4 py-2 rounded">技术板块</button>
           <button data-section="daily" class="section-btn bg-gray-200 px-4 py-2 rounded">日常板块</button>
           <button data-section="user" class="section-btn bg-gray-200 px-4 py-2 rounded">用户中心</button>
           <button data-section="points" class="section-btn bg-gray-200 px-4 py-2 rounded">积分排行榜</button>
+          <button data-section="admin" id="adminSectionBtn" class="section-btn hidden bg-gray-200 px-4 py-2 rounded">管理员板块</button>
         </div>
 
+        <!-- 技术板块 -->
         <div id="techSection" class="section-content">
-          <h2 class="font-bold text-xl mb-2">技术问题板块</h2>
+          <h2 class="text-xl font-bold mb-2">技术问题板块</h2>
           <textarea id="techPostContent" class="w-full border p-2 rounded mb-2" placeholder="发表技术问题..."></textarea>
-          <input id="techPostImage" type="file" class="mb-2" />
-          <button id="techPostBtn" class="bg-blue-500 text-white px-4 py-2 rounded">发布</button>
+          <button id="techPostBtn" class="bg-blue-600 text-white px-4 py-2 rounded">发布</button>
           <div id="techPosts" class="mt-4 space-y-3"></div>
         </div>
 
+        <!-- 日常板块 -->
         <div id="dailySection" class="section-content hidden">
-          <h2 class="font-bold text-xl mb-2">日常讨论板块</h2>
+          <h2 class="text-xl font-bold mb-2">日常讨论板块</h2>
           <textarea id="dailyPostContent" class="w-full border p-2 rounded mb-2" placeholder="分享日常点滴..."></textarea>
-          <input id="dailyPostImage" type="file" class="mb-2" />
-          <button id="dailyPostBtn" class="bg-blue-500 text-white px-4 py-2 rounded">发布</button>
+          <button id="dailyPostBtn" class="bg-blue-600 text-white px-4 py-2 rounded">发布</button>
           <div id="dailyPosts" class="mt-4 space-y-3"></div>
         </div>
 
+        <!-- 用户中心 -->
         <div id="userSection" class="section-content hidden">
-          <h2 class="font-bold text-xl mb-2">个人中心</h2>
-          <div class="p-4 bg-white rounded shadow">
+          <h2 class="text-xl font-bold mb-3">个人中心</h2>
+          <div class="bg-white p-4 rounded shadow space-y-1">
             <p>姓名：<span id="profileName"></span></p>
             <p>工号：<span id="profileEmployeeId"></span></p>
-            <p>积分：<span id="profilePoints">0</span></p>
+            <p>当前积分：<span id="profilePoints">0</span></p>
             <button id="signInBtn" class="mt-2 bg-green-500 text-white px-4 py-2 rounded">每日签到</button>
-            <p id="signInStatus" class="text-gray-500 mt-1"></p>
+            <p id="signInStatus" class="text-gray-500"></p>
           </div>
         </div>
 
+        <!-- 积分排行榜 -->
         <div id="pointsSection" class="section-content hidden">
-          <h2 class="font-bold text-xl mb-4">积分排行榜</h2>
+          <h2 class="text-xl font-bold mb-3">积分排行榜</h2>
           <table class="w-full text-left bg-white rounded shadow">
-            <thead><tr class="bg-gray-200"><th class="p-2">排名</th><th class="p-2">姓名</th><th class="p-2">工号</th><th class="p-2">积分</th></tr></thead>
+            <thead class="bg-gray-200">
+              <tr><th class="p-2">排名</th><th class="p-2">姓名</th><th class="p-2">工号</th><th class="p-2">积分</th></tr>
+            </thead>
             <tbody id="pointsTable"></tbody>
           </table>
         </div>
-      </div>
-    </div>
 
-    <footer class="bg-gray-800 text-white py-4 mt-auto text-center">装备部件团支部青年π空间 &copy; 2025</footer>
+        <!-- 管理员板块 -->
+        <div id="adminSection" class="section-content hidden">
+          <h2 class="text-xl font-bold mb-3">管理员操作</h2>
+          <div id="adminPosts" class="space-y-3"></div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-4 text-center mt-auto">
+      装备部件团支部青年π空间 &copy; 2025
+    </footer>
   </div>
 
   <script>
+    // Firebase 初始化
     const firebaseConfig = {
       apiKey: "AIzaSyC19CX0gSWAzvFevy43EQRy4uX1A265LuM",
       authDomain: "youth-pi-space.firebaseapp.com",
       databaseURL: "https://youth-pi-space-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "youth-pi-space",
+      projectId: "youth-pi-space"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -104,72 +121,159 @@
       document.getElementById("techPostBtn").addEventListener("click", () => createPost("tech"));
       document.getElementById("dailyPostBtn").addEventListener("click", () => createPost("daily"));
       document.getElementById("signInBtn").addEventListener("click", signInToday);
-      document.querySelectorAll(".section-btn").forEach(btn =>
-        btn.addEventListener("click", () => switchSection(btn.dataset.section))
-      );
+      document.querySelectorAll(".section-btn").forEach(btn => btn.addEventListener("click", () => switchSection(btn.dataset.section)));
     });
 
+    // 登录逻辑
     function login() {
-      const id = document.getElementById("loginEmployeeId").value.trim();
-      const pwd = document.getElementById("loginPassword").value;
-      db.ref("users/" + id).once("value").then(snap => {
+      const empId = document.getElementById("loginEmployeeId").value.trim();
+      const pwd = document.getElementById("loginPassword").value.trim();
+      db.ref("users/" + empId).once("value").then(snap => {
         if (!snap.exists()) return alert("用户不存在");
-        currentUser = snap.val();
+        const data = snap.val();
+        if (pwd !== data.password) return alert("密码错误");
+        currentUser = data;
         document.getElementById("loginContainer").classList.add("hidden");
         document.getElementById("mainContainer").classList.remove("hidden");
+        document.getElementById("navUserName").textContent = currentUser.name;
+        document.getElementById("userNav").classList.remove("hidden");
         document.getElementById("profileName").textContent = currentUser.name;
         document.getElementById("profileEmployeeId").textContent = currentUser.employee_id;
         document.getElementById("profilePoints").textContent = currentUser.points || 0;
-        loadPointsRanking();
+        if (currentUser.is_admin) document.getElementById("adminSectionBtn").classList.remove("hidden");
+        loadPosts();
+        loadRanking();
       });
     }
 
-    function switchSection(sec) {
-      document.querySelectorAll(".section-btn").forEach(b=>b.classList.remove("bg-blue-500","text-white"));
-      document.querySelector(`.section-btn[data-section='${sec}']`).classList.add("bg-blue-500","text-white");
-      document.querySelectorAll(".section-content").forEach(c=>c.classList.add("hidden"));
-      document.getElementById(sec+"Section").classList.remove("hidden");
-      if(sec==="points") loadPointsRanking();
+    // 切换区块
+    function switchSection(section) {
+      document.querySelectorAll(".section-btn").forEach(b => b.classList.remove("bg-blue-600", "text-white"));
+      document.querySelector(`[data-section='${section}']`).classList.add("bg-blue-600", "text-white");
+      document.querySelectorAll(".section-content").forEach(c => c.classList.add("hidden"));
+      document.getElementById(section + "Section").classList.remove("hidden");
+      if (section === "points") loadRanking();
+      if (section === "admin" && currentUser.is_admin) loadAdminPosts();
     }
 
-    function createPost(section){
-      const content=document.getElementById(section+"PostContent").value.trim();
-      if(!content) return alert("请输入内容");
-      const postId=Date.now().toString();
-      const post={id:postId, author:currentUser.name, employee_id:currentUser.employee_id, content, section, created_at:new Date().toISOString()};
-      db.ref("posts/"+postId).set(post).then(()=>{
-        addPoints(currentUser.employee_id,5,"发帖");
-        alert("发布成功 +5积分");
+    // 发帖
+    function createPost(section) {
+      const content = document.getElementById(section + "PostContent").value.trim();
+      if (!content) return alert("请输入内容");
+      const postId = Date.now().toString();
+      const post = {
+        id: postId, section, content,
+        author: currentUser.name,
+        employee_id: currentUser.employee_id,
+        created_at: new Date().toISOString(),
+        is_excellent: false
+      };
+      db.ref("posts/" + postId).set(post).then(() => {
+        document.getElementById(section + "PostContent").value = "";
+        loadPosts();
+        addPoints(currentUser.employee_id, 5, "发帖");
+        alert("发帖成功 +5积分");
       });
     }
 
-    function addPoints(empId, amount, reason){
-      const ref=db.ref("users/"+empId+"/points");
-      ref.transaction(p=>(p||0)+amount);
+    // 加积分函数
+    function addPoints(empId, amount, reason) {
+      const userRef = db.ref("users/" + empId + "/points");
+      userRef.transaction(cur => (cur || 0) + amount);
     }
 
-    function signInToday(){
-      const today=(new Date()).toISOString().split("T")[0];
-      const ref=db.ref("users/"+currentUser.employee_id);
-      ref.once("value").then(snap=>{
-        const data=snap.val();
-        if(data.last_signin===today){document.getElementById("signInStatus").textContent="今日已签到";return;}
-        ref.update({last_signin:today});
-        addPoints(data.employee_id,5,"每日签到");
-        document.getElementById("signInStatus").textContent="签到成功 +5积分";
+    // 签到函数
+    function signInToday() {
+      const today = new Date().toISOString().split("T")[0];
+      const userRef = db.ref("users/" + currentUser.employee_id);
+      userRef.once("value").then(snap => {
+        const data = snap.val();
+        if (data.last_signin === today) {
+          document.getElementById("signInStatus").textContent = "今日已签到";
+          return;
+        }
+        userRef.update({ last_signin: today });
+        addPoints(currentUser.employee_id, 5, "每日签到");
+        document.getElementById("signInStatus").textContent = "签到成功 +5积分";
+        updateProfilePoints();
       });
     }
 
-    function loadPointsRanking(){
-      db.ref("users").once("value").then(snap=>{
-        const arr=[];
-        snap.forEach(c=>arr.push(c.val()));
-        arr.sort((a,b)=>(b.points||0)-(a.points||0));
-        const tb=document.getElementById("pointsTable");
-        tb.innerHTML="";
-        arr.forEach((u,i)=>{
-          const tr=document.createElement("tr");
-          tr.innerHTML=`<td class='p-2'>${i+1}</td><td class='p-2'>${u.name}</td><td class='p-2'>${u.employee_id}</td><td class='p-2'>${u.points||0}</td>`;
+    // 更新个人积分显示
+    function updateProfilePoints() {
+      db.ref("users/" + currentUser.employee_id + "/points").once("value").then(s => {
+        document.getElementById("profilePoints").textContent = s.val() || 0;
+      });
+    }
+
+    // 加载帖子
+    function loadPosts() {
+      db.ref("posts").on("value", snap => {
+        const techDiv = document.getElementById("techPosts");
+        const dailyDiv = document.getElementById("dailyPosts");
+        techDiv.innerHTML = ""; dailyDiv.innerHTML = "";
+        snap.forEach(p => {
+          const post = p.val();
+          const div = document.createElement("div");
+          div.className = "bg-white p-3 rounded shadow";
+          const star = post.is_excellent ? "⭐ " : "";
+          div.innerHTML = `<p><strong>${star}${post.author}</strong>：${post.content}</p>
+                           <p class='text-gray-500 text-sm'>${new Date(post.created_at).toLocaleString()}</p>`;
+          if (currentUser.is_admin && !post.is_excellent) {
+            const btn = document.createElement("button");
+            btn.textContent = "设为优秀";
+            btn.className = "mt-2 bg-yellow-500 text-white px-3 py-1 rounded";
+            btn.onclick = () => markExcellent(post);
+            div.appendChild(btn);
+          }
+          (post.section === "tech" ? techDiv : dailyDiv).appendChild(div);
+        });
+      });
+    }
+
+    // 管理员设优秀帖
+    function markExcellent(post) {
+      db.ref("posts/" + post.id + "/is_excellent").set(true);
+      addPoints(post.employee_id, 10, "优秀帖");
+      alert("已设为优秀帖 +10积分");
+    }
+
+    // 加载管理员板块
+    function loadAdminPosts() {
+      db.ref("posts").once("value").then(snap => {
+        const box = document.getElementById("adminPosts");
+        box.innerHTML = "";
+        snap.forEach(p => {
+          const post = p.val();
+          const div = document.createElement("div");
+          div.className = "bg-white p-3 rounded shadow";
+          div.innerHTML = `<p><strong>${post.author}</strong>（${post.section}）：${post.content}</p>`;
+          if (!post.is_excellent) {
+            const btn = document.createElement("button");
+            btn.textContent = "设为优秀";
+            btn.className = "mt-2 bg-yellow-500 text-white px-3 py-1 rounded";
+            btn.onclick = () => markExcellent(post);
+            div.appendChild(btn);
+          } else {
+            div.innerHTML += `<p class='text-yellow-600'>⭐ 已为优秀帖</p>`;
+          }
+          box.appendChild(div);
+        });
+      });
+    }
+
+    // 加载积分排行榜
+    function loadRanking() {
+      db.ref("users").once("value").then(snap => {
+        const arr = [];
+        snap.forEach(c => arr.push(c.val()));
+        arr.sort((a, b) => (b.points || 0) - (a.points || 0));
+        const tb = document.getElementById("pointsTable");
+        tb.innerHTML = "";
+        arr.forEach((u, i) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td class='p-2'>${i + 1}</td><td class='p-2'>${u.name}</td>
+                          <td class='p-2'>${u.employee_id}</td><td class='p-2'>${u.points || 0}</td>`;
           tb.appendChild(tr);
         });
       });
