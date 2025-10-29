@@ -73,6 +73,20 @@
             background: linear-gradient(135deg, #CD7F32, #B8860B);
             color: white;
         }
+
+        /* ========== 新增：签到按钮样式 ========== */
+        .checkin-btn {
+            transition: all 0.3s ease;
+        }
+        
+        .checkin-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+        
+        .checkin-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -86,6 +100,8 @@
                         <img id="navUserAvatar" class="w-8 h-8 rounded-full object-cover" src="https://via.placeholder.com/32" alt="用户头像">
                         <span id="navUserName">加载中...</span>
                         <span id="navUserPoints" class="px-2 py-1 bg-yellow-400 text-blue-900 rounded font-bold text-sm">0积分</span>
+                        <!-- ========== 新增：导航栏签到按钮 ========== -->
+                        <button id="navCheckinBtn" class="checkin-btn px-3 py-1 bg-green-500 rounded hover:bg-green-600 text-sm font-bold">📅 签到</button>
                         <button id="editProfileBtn" class="px-3 py-1 bg-blue-500 rounded hover:bg-blue-600">编辑信息</button>
                         <!-- 用户管理按钮（仅系统管理员可见） -->
                         <button id="userManagementBtn" class="hidden px-3 py-1 bg-purple-500 rounded hover:bg-purple-600">用户管理</button>
@@ -235,6 +251,26 @@
 
             <!-- 主要内容区 -->
             <div id="mainContainer" class="hidden">
+                <!-- ========== 新增：签到卡片区域 ========== -->
+                <div class="bg-gradient-to-r from-green-400 to-blue-500 shadow-lg rounded-lg p-6 mb-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="text-5xl">📅</div>
+                            <div>
+                                <h3 class="text-2xl font-bold">每日签到</h3>
+                                <p class="text-sm opacity-90">签到即可获得2积分奖励</p>
+                                <p id="checkinStatus" class="text-xs mt-1 opacity-80">加载中...</p>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <button id="checkinBtn" class="checkin-btn px-8 py-3 bg-white text-green-600 rounded-lg font-bold text-lg shadow-lg hover:shadow-xl">
+                                立即签到
+                            </button>
+                            <p id="checkinDays" class="text-sm mt-2 opacity-90">累计签到 0 天</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 板块导航 -->
                 <div class="bg-white shadow-md rounded-lg p-4 mb-6">
                     <div class="flex space-x-4">
@@ -284,7 +320,7 @@
                     <h2 class="text-xl font-bold mb-4">🏆 积分排行榜</h2>
                     <div class="bg-white shadow-md rounded-lg p-6">
                         <div class="mb-4 text-center">
-                            <p class="text-gray-600">📊 发帖 +10分 | 回帖 +5分 | 优质帖置顶 +5分</p>
+                            <p class="text-gray-600">📊 签到 +2分 | 发帖 +10分 | 回帖 +5分 | 优质帖置顶 +5分</p>
                         </div>
                         <div id="rankingList" class="space-y-3">
                             <p class="text-gray-500 text-center py-8">加载中...</p>
@@ -308,6 +344,8 @@
                                 <h3 id="profileName" class="text-xl font-semibold">加载中...</h3>
                                 <p class="text-gray-600">工号: <span id="profileEmployeeId">加载中...</span></p>
                                 <p class="text-yellow-600 font-bold text-lg">💰 积分: <span id="profilePoints">0</span></p>
+                                <!-- ========== 新增：个人中心显示签到信息 ========== -->
+                                <p class="text-green-600 text-sm mt-1">📅 累计签到: <span id="profileCheckinDays">0</span> 天</p>
                                 <div class="flex space-x-2 mt-1">
                                     <p id="adminBadge" class="hidden text-xs bg-red-500 text-white px-2 py-0.5 rounded inline-block">管理员</p>
                                     <p id="systemAdminBadge" class="hidden text-xs bg-purple-500 text-white px-2 py-0.5 rounded inline-block">系统管理员</p>
@@ -556,110 +594,239 @@
             }
         }
 
-        // 加载积分排行榜
-function loadRankingList() {
-    showLoading(true);
-    
-    database.ref('users').once('value').then((snapshot) => {
-        const rankingList = document.getElementById('rankingList');
-        rankingList.innerHTML = '';
+        // ========== 新增：签到功能模块 ========== 
         
-        if (!snapshot.exists()) {
-            rankingList.innerHTML = '<p class="text-gray-500 text-center py-8">暂无数据</p>';
-            showLoading(false);
-            return;
+        // 获取当天日期字符串（YYYY-MM-DD格式）
+        function getTodayDateString() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
         }
-        
-        // 收集所有用户数据
-        const users = [];
-        const pointsUpdates = {}; // 用于批量更新缺少积分的用户
-        
-        snapshot.forEach((childSnapshot) => {
-            const userData = childSnapshot.val();
-            const employeeId = userData.employee_id;
+
+        // 检查今日是否已签到
+        async function checkTodayCheckin() {
+            if (!currentUser) return false;
             
-            // 如果用户没有积分字段，初始化为0
-            let points = userData.points;
-            if (points === undefined || points === null) {
-                points = 0;
-                pointsUpdates[`users/${employeeId}/points`] = 0;
+            try {
+                const todayDate = getTodayDateString();
+                const checkinRef = database.ref(`checkins/${currentUser.employee_id}/${todayDate}`);
+                const snapshot = await checkinRef.once('value');
+                return snapshot.exists();
+            } catch (error) {
+                console.error('检查签到状态失败:', error);
+                return false;
             }
-            
-            users.push({
-                employee_id: employeeId,
-                name: userData.name,
-                avatar_url: userData.avatar_url,
-                points: points,
-                is_admin: userData.is_admin || false,
-                is_system_admin: userData.is_system_admin || false
-            });
-        });
-        
-        // 如果有需要更新的积分，批量更新
-        if (Object.keys(pointsUpdates).length > 0) {
-            database.ref().update(pointsUpdates).then(() => {
-                console.log('已初始化缺少积分的用户');
-            });
         }
-        
-        // 按积分降序排序
-        users.sort((a, b) => b.points - a.points);
-        
-        // 渲染排行榜
-        const template = document.getElementById('rankItemTemplate');
-        
-        users.forEach((user, index) => {
-            const rankItem = template.content.cloneNode(true).querySelector('.rank-item');
+
+        // 获取累计签到天数
+        async function getCheckinDays() {
+            if (!currentUser) return 0;
             
-            // 设置排名
-            const rankNumber = rankItem.querySelector('.rank-number');
-            if (index < 3) {
-                // 前三名显示奖牌
-                rankNumber.classList.add('rank-medal', `rank-${index + 1}`);
-                rankNumber.textContent = index + 1;
+            try {
+                const checkinRef = database.ref(`checkins/${currentUser.employee_id}`);
+                const snapshot = await checkinRef.once('value');
+                
+                if (snapshot.exists()) {
+                    return Object.keys(snapshot.val()).length;
+                }
+                return 0;
+            } catch (error) {
+                console.error('获取签到天数失败:', error);
+                return 0;
+            }
+        }
+
+        // 更新签到UI状态
+        async function updateCheckinUI() {
+            if (!currentUser) return;
+            
+            const hasCheckedIn = await checkTodayCheckin();
+            const checkinDays = await getCheckinDays();
+            
+            // 更新签到按钮
+            const checkinBtn = document.getElementById('checkinBtn');
+            const navCheckinBtn = document.getElementById('navCheckinBtn');
+            
+            if (hasCheckedIn) {
+                checkinBtn.textContent = '✓ 今日已签到';
+                checkinBtn.disabled = true;
+                checkinBtn.classList.add('bg-gray-300', 'text-gray-600');
+                checkinBtn.classList.remove('bg-white', 'text-green-600');
+                
+                navCheckinBtn.textContent = '✓ 已签到';
+                navCheckinBtn.disabled = true;
+                navCheckinBtn.classList.add('bg-gray-400');
+                navCheckinBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                
+                document.getElementById('checkinStatus').textContent = '今天已经签到了，明天再来吧！';
             } else {
-                rankNumber.textContent = index + 1;
+                checkinBtn.textContent = '立即签到';
+                checkinBtn.disabled = false;
+                checkinBtn.classList.remove('bg-gray-300', 'text-gray-600');
+                checkinBtn.classList.add('bg-white', 'text-green-600');
+                
+                navCheckinBtn.textContent = '📅 签到';
+                navCheckinBtn.disabled = false;
+                navCheckinBtn.classList.remove('bg-gray-400');
+                navCheckinBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+                
+                document.getElementById('checkinStatus').textContent = '今天还没签到，快来签到领取积分吧！';
             }
             
-            // 设置头像
-            if (user.avatar_url) {
-                rankItem.querySelector('.rank-avatar').src = user.avatar_url;
+            // 更新签到天数显示
+            document.getElementById('checkinDays').textContent = `累计签到 ${checkinDays} 天`;
+            document.getElementById('profileCheckinDays').textContent = checkinDays;
+        }
+
+        // 执行签到操作
+        async function performCheckin() {
+            if (!currentUser) {
+                showToast('请先登录', false);
+                return;
             }
             
-            // 设置姓名
-            rankItem.querySelector('.rank-name').textContent = user.name;
-            
-            // 设置工号
-            rankItem.querySelector('.rank-employee-id').textContent = `工号: ${user.employee_id}`;
-            
-            // 显示管理员标识
-            if (user.is_system_admin) {
-                const badge = rankItem.querySelector('.rank-admin-badge');
-                badge.classList.remove('hidden', 'bg-red-500');
-                badge.classList.add('bg-purple-500');
-                badge.textContent = '系统管理员';
-            } else if (user.is_admin) {
-                rankItem.querySelector('.rank-admin-badge').classList.remove('hidden');
+            // 检查今日是否已签到
+            const hasCheckedIn = await checkTodayCheckin();
+            if (hasCheckedIn) {
+                showToast('今天已经签到过了哦！', false);
+                return;
             }
             
-            // 设置积分
-            rankItem.querySelector('.rank-points').textContent = user.points;
+            showLoading(true);
             
-            // 高亮当前用户
-            if (currentUser && user.employee_id === currentUser.employee_id) {
-                rankItem.classList.add('bg-blue-50', 'border-blue-400');
+            try {
+                const todayDate = getTodayDateString();
+                const checkinData = {
+                    date: todayDate,
+                    timestamp: new Date().toISOString(),
+                    employee_id: currentUser.employee_id,
+                    name: currentUser.name
+                };
+                
+                // 保存签到记录
+                await database.ref(`checkins/${currentUser.employee_id}/${todayDate}`).set(checkinData);
+                
+                // 增加2积分
+                await addUserPoints(currentUser.employee_id, 2, '每日签到');
+                
+                // 更新UI
+                await updateCheckinUI();
+                
+                showToast('签到成功！获得2积分 🎉');
+            } catch (error) {
+                console.error('签到失败:', error);
+                showToast('签到失败: ' + error.message, false);
+            } finally {
+                showLoading(false);
             }
+        }
+
+        // 加载积分排行榜
+        function loadRankingList() {
+            showLoading(true);
             
-            rankingList.appendChild(rankItem);
-        });
-        
-        showLoading(false);
-    }).catch(error => {
-        console.error('加载排行榜失败:', error);
-        showToast('加载排行榜失败', false);
-        showLoading(false);
-    });
-}
+            database.ref('users').once('value').then((snapshot) => {
+                const rankingList = document.getElementById('rankingList');
+                rankingList.innerHTML = '';
+                
+                if (!snapshot.exists()) {
+                    rankingList.innerHTML = '<p class="text-gray-500 text-center py-8">暂无数据</p>';
+                    showLoading(false);
+                    return;
+                }
+                
+                // 收集所有用户数据
+                const users = [];
+                const pointsUpdates = {}; // 用于批量更新缺少积分的用户
+                
+                snapshot.forEach((childSnapshot) => {
+                    const userData = childSnapshot.val();
+                    const employeeId = userData.employee_id;
+                    
+                    // 如果用户没有积分字段，初始化为0
+                    let points = userData.points;
+                    if (points === undefined || points === null) {
+                        points = 0;
+                        pointsUpdates[`users/${employeeId}/points`] = 0;
+                    }
+                    
+                    users.push({
+                        employee_id: employeeId,
+                        name: userData.name,
+                        avatar_url: userData.avatar_url,
+                        points: points,
+                        is_admin: userData.is_admin || false,
+                        is_system_admin: userData.is_system_admin || false
+                    });
+                });
+                
+                // 如果有需要更新的积分，批量更新
+                if (Object.keys(pointsUpdates).length > 0) {
+                    database.ref().update(pointsUpdates).then(() => {
+                        console.log('已初始化缺少积分的用户');
+                    });
+                }
+                
+                // 按积分降序排序
+                users.sort((a, b) => b.points - a.points);
+                
+                // 渲染排行榜
+                const template = document.getElementById('rankItemTemplate');
+                
+                users.forEach((user, index) => {
+                    const rankItem = template.content.cloneNode(true).querySelector('.rank-item');
+                    
+                    // 设置排名
+                    const rankNumber = rankItem.querySelector('.rank-number');
+                    if (index < 3) {
+                        // 前三名显示奖牌
+                        rankNumber.classList.add('rank-medal', `rank-${index + 1}`);
+                        rankNumber.textContent = index + 1;
+                    } else {
+                        rankNumber.textContent = index + 1;
+                    }
+                    
+                    // 设置头像
+                    if (user.avatar_url) {
+                        rankItem.querySelector('.rank-avatar').src = user.avatar_url;
+                    }
+                    
+                    // 设置姓名
+                    rankItem.querySelector('.rank-name').textContent = user.name;
+                    
+                    // 设置工号
+                    rankItem.querySelector('.rank-employee-id').textContent = `工号: ${user.employee_id}`;
+                    
+                    // 显示管理员标识
+                    if (user.is_system_admin) {
+                        const badge = rankItem.querySelector('.rank-admin-badge');
+                        badge.classList.remove('hidden', 'bg-red-500');
+                        badge.classList.add('bg-purple-500');
+                        badge.textContent = '系统管理员';
+                    } else if (user.is_admin) {
+                        rankItem.querySelector('.rank-admin-badge').classList.remove('hidden');
+                    }
+                    
+                    // 设置积分
+                    rankItem.querySelector('.rank-points').textContent = user.points;
+                    
+                    // 高亮当前用户
+                    if (currentUser && user.employee_id === currentUser.employee_id) {
+                        rankItem.classList.add('bg-blue-50', 'border-blue-400');
+                    }
+                    
+                    rankingList.appendChild(rankItem);
+                });
+                
+                showLoading(false);
+            }).catch(error => {
+                console.error('加载排行榜失败:', error);
+                showToast('加载排行榜失败', false);
+                showLoading(false);
+            });
+        }
 
         // 设置积分排行榜实时监听
         function setupRankingListener() {
@@ -727,6 +894,10 @@ function loadRankingList() {
             // 用户管理按钮
             document.getElementById('userManagementBtn').addEventListener('click', showUserManagement);
             document.getElementById('closeUserManagementBtn').addEventListener('click', hideUserManagement);
+
+            // ========== 新增：签到按钮事件 ==========
+            document.getElementById('checkinBtn').addEventListener('click', performCheckin);
+            document.getElementById('navCheckinBtn').addEventListener('click', performCheckin);
 
             // 板块切换
             document.querySelectorAll('.section-btn').forEach(btn => {
@@ -815,6 +986,7 @@ function loadRankingList() {
                                 setupRankingListener(); // 设置排行榜监听
                                 
                                 showMainUI();
+                                updateCheckinUI(); // ========== 新增：更新签到UI ==========
                             } else {
                                 logout();
                             }
@@ -870,6 +1042,7 @@ function loadRankingList() {
                         setupRankingListener(); // 设置排行榜监听
                         
                         showMainUI();
+                        updateCheckinUI(); // ========== 新增：更新签到UI ==========
                         showToast('系统管理员登录成功');
                     } else {
                         addInitialSystemAdmin();
@@ -908,6 +1081,7 @@ function loadRankingList() {
                         setupRankingListener(); // 设置排行榜监听
                         
                         showMainUI();
+                        updateCheckinUI(); // ========== 新增：更新签到UI ==========
                         showToast('登录成功');
                     } else {
                         showToast('密码错误', false);
